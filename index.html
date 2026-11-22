@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>이번 학기는 진짜 에이 각이다</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f4f1e9; color: #243c38; font-family: system-ui, sans-serif; line-height: 1.65; }
+    main { max-width: 1140px; margin: auto; padding: 40px 22px; }
+    .eyebrow { color: #697b70; font-size: 12px; letter-spacing: .15em; font-weight: 700; }
+    h1 { font-size: clamp(28px, 5vw, 43px); letter-spacing: -.06em; margin: 8px 0; }
+    h2 { margin: 0 0 12px; font-size: 23px; letter-spacing: -.04em; }
+    #scene h2:focus { outline: none; }
+    h3 { margin: 16px 0 8px; font-size: 18px; }
+    p { margin: 8px 0 16px; }
+    .muted { color: #67766e; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 26px 0; }
+    .stat { padding: 18px; background: #fffdf8; border: 1px solid #dfdfd2; border-radius: 16px; }
+    .stat strong { display: block; font-size: 23px; font-variant-numeric: tabular-nums; }
+    .layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+    .panel { background: #fffdf8; border: 1px solid #dfdfd2; border-radius: 20px; padding: 24px; min-width: 0; }
+    .progress { display: flex; gap: 6px; margin: 14px 0 20px; }
+    .progress span { flex: 1; height: 6px; border-radius: 8px; background: #e6e8df; }
+    .progress .done { background: #3e7967; }
+    .badge { display: inline-block; border-radius: 8px; background: #e5eee5; padding: 3px 9px; font-size: 12px; color: #30624e; margin-bottom: 12px; }
+    .choices { display: grid; gap: 10px; }
+    button { font: inherit; cursor: pointer; text-align: left; padding: 13px 16px; border: 1px solid #cfd8cc; border-radius: 12px; background: #f7f9f2; color: #243c38; touch-action: manipulation; overflow-wrap: anywhere; }
+    button:hover:not(:disabled) { background: #e6efe4; border-color: #3e7967; }
+    button:focus-visible, summary:focus-visible { outline: 3px solid #bf8337; outline-offset: 3px; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    button strong, button small { display: block; }
+    button small { margin-top: 4px; color: #63756a; }
+    .primary { background: #285d4d; color: white; text-align: center; }
+    .primary small { color: #d9e7dd; }
+    .primary:hover:not(:disabled) { background: #1f4b3e; }
+    #notice { margin: 16px 0; padding: 12px 16px; border-left: 3px solid #b88945; background: #f7efdf; font-size: 14px; }
+    #notice:empty { display: none; }
+    #history { max-height: 500px; overflow-y: auto; padding-left: 22px; margin-bottom: 0; font-size: 14px; }
+    #history li { padding: 0 0 16px 5px; }
+    #history small { display: block; color: #7b8174; }
+    .opportunity { border-left: 3px solid #6e9277; padding: 5px 0 5px 14px; margin: 18px 0; }
+    ul { padding-left: 22px; }
+    footer, #save-status { font-size: 12px; color: #657564; margin-top: 18px; }
+    details { margin: 14px 0; }
+    summary { cursor: pointer; font-weight: 700; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; margin: 12px 0; }
+    th, td { text-align: left; border-bottom: 1px solid #e2e5d8; padding: 8px 4px; }
+    .tools { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .tools button { font-size: 12px; padding: 8px 12px; }
+    #life-summary { margin: 16px 0 6px; font-weight: 700; }
+    .age-basis { font-size: 12px; color: #67766e; }
+    .character-form { display: grid; gap: 8px; }
+    .character-form label { margin-top: 8px; font-weight: 700; }
+    input, select { width: 100%; min-width: 0; padding: 10px; border: 1px solid #cfd8cc; border-radius: 8px; background: #fffdf8; color: #243c38; font: inherit; }
+    input:focus-visible, select:focus-visible { outline: 3px solid #bf8337; }
+    .opportunity button { margin-top: 12px; }
+    [hidden] { display: none !important; }
+    dialog { width: min(94vw, 850px); max-height: 85vh; overflow-y: auto; border: 1px solid #cfd8cc; border-radius: 20px; padding: 24px; background: #fffdf8; color: #243c38; }
+    dialog::backdrop { background: #142c26aa; }
+    #timeline-records { max-height: 350px; overflow-y: auto; font-size: 13px; }
+    .comparison-scroll { max-width: 100%; overflow-x: auto; }
+    .comparison-scroll table { min-width: 1000px; font-size: 13px; }
+    #forty-review-button { border: 2px solid #bf8337; }
+    @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } main { padding: 24px 14px; } .panel { padding: 18px; } .stat { padding: 10px; } .stat strong { font-size: 18px; } #history { max-height: 300px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div class="eyebrow">나의 캠퍼스 · 그리고 다음 페이지</div>
+      <h1>이번 학기는 진짜 에이 각이다</h1>
+      <p class="muted">성적표에 적히지 않는 시간도, 언젠가 나의 길이 된다.</p>
+      <p id="life-summary"></p>
+      <p class="age-basis">나이 = 현재 연도 − 출생 연도 · 생일을 계산하지 않는 연도 기준입니다.</p>
+    </header>
+    <section class="stats" aria-label="현재 상태">
+      <div class="stat">현재 과정 <strong id="stage"></strong></div>
+      <div class="stat">생활비 <strong id="money"></strong></div>
+      <div class="stat">체력 <strong id="energy"></strong></div>
+      <div class="stat">스트레스 <strong id="stress"></strong></div>
+      <div class="stat">행복도 <strong id="happiness"></strong></div>
+      <div class="stat">종합 OVR <strong id="ovr"></strong></div>
+    </section>
+    <div class="layout">
+      <section class="panel" id="scene" aria-label="진행 및 선택"></section>
+      <aside class="panel">
+        <h2>나의 캠퍼스 노트</h2>
+        <p class="muted">작은 선택과 그다음에 찾아온 기회.</p>
+        <div id="notice" role="status" aria-live="polite"></div>
+        <details id="profile-menu" hidden><summary>내 정보</summary><div id="profile"></div></details>
+        <details id="development-menu" hidden><summary>잠재력·성장·진로 경쟁력</summary><div id="development-profile"></div></details>
+        <details id="graduate-admissions-menu" hidden><summary>대학원 지원 기록</summary><div id="graduate-admissions-records"></div></details>
+        <details id="entrance-menu" hidden><summary>대학 입시 기록</summary><div id="entrance-records"></div></details>
+        <details id="academic-menu" hidden><summary>지난 성적표 다시 보기</summary><div id="reports"></div></details>
+        <details id="academic-progress-menu" hidden><summary>학사 요건·재수강</summary><div id="academic-progress"></div></details>
+        <details id="assets-menu" hidden><summary>주거·자산·대출</summary><div id="assets"></div></details>
+        <details id="relationships-menu" hidden><summary>인간관계·연애 기록</summary><div id="relationships-records"></div></details>
+        <details id="study-menu" hidden><summary>연구·어학·교환·휴학 기록</summary><div id="study-records"></div></details>
+        <details id="employment-menu" hidden><summary>채용·직장 생활 기록</summary><div id="employment-records"></div></details>
+        <details id="timeline-menu" hidden><summary>인생 타임라인</summary><div id="timeline-records"></div></details>
+        <details id="career-menu" hidden><summary>커리어와 대회 기록</summary><div id="career"></div></details>
+        <ol id="history" reversed></ol>
+        <p id="save-status" role="status"></p>
+        <div class="tools">
+          <button id="journal-button" type="button" hidden>인생 회고록 보기</button>
+          <button id="life-review-button" type="button" hidden>인생 중간 결산·자유 엔딩</button>
+          <button id="forty-review-button" type="button" hidden>40세 인생 결산</button>
+          <button id="lifestyle-button" type="button" hidden>생활·가족·상점</button>
+          <button id="military-button" type="button" hidden>병역·복무 일정</button>
+          <button id="slots-button" type="button">저장 슬롯 4개</button>
+          <button id="manual-save" type="button">현재 슬롯 수동 저장</button>
+          <button id="slots-export" type="button">전체 슬롯 백업</button>
+          <button id="save-export" type="button">저장 파일 내보내기</button>
+          <button id="save-import" type="button">저장 파일 불러오기</button>
+          <input id="save-file" type="file" accept=".json,application/json" hidden>
+          <button id="restart" type="button">처음부터 다시 시작</button>
+        </div>
+      </aside>
+    </div>
+    <footer>금액은 만원 단위 · 학기 성적은 성적표에서만 공개 · 가상 프로그램과 가상 국제 대회입니다.<br>브라우저 자동 저장은 같은 파일 경로·브라우저에서 이어집니다. 비공개 모드나 저장 차단 환경에서는 유지되지 않을 수 있습니다.</footer>
+  </main>
+  <dialog id="journal-dialog" aria-label="나의 인생 회고록">
+    <div class="tools"><button id="journal-close" type="button">회고록 닫기</button><button id="journal-download" type="button">회고록 내려받기</button></div>
+    <div id="journal-content"></div>
+  </dialog>
+  <dialog id="slots-dialog" aria-label="캐릭터 저장 슬롯">
+    <button id="slots-close" type="button">슬롯 창 닫기</button>
+    <div id="slots-content"></div>
+  </dialog>
+  <dialog id="life-review-dialog" aria-label="인생 종합 평가">
+    <div id="life-review-content"></div>
+  </dialog>
+  <script src="settings.js"></script>
+  <script src="expansion-settings.js"></script>
+  <script src="integration-settings.js"></script>
+  <script src="graduate-settings.js"></script>
+  <script src="development.js"></script>
+  <script src="graduate.js"></script>
+  <script src="degree.js"></script>
+  <script src="lifestyle.js"></script>
+  <script src="military-settings.js"></script>
+  <script src="military.js"></script>
+  <script src="slots.js"></script>
+  <script src="life-assessment-settings.js"></script>
+  <script src="life-assessment.js"></script>
+  <script src="life.js"></script>
+  <script src="campus.js"></script>
+  <script src="social.js"></script>
+  <script src="study.js"></script>
+  <script src="career.js"></script>
+  <script src="memoir.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

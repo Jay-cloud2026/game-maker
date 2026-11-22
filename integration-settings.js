@@ -1,0 +1,51 @@
+// 통합 확장: 기존 설정을 교체하지 않고 성장·선발의 공통 규칙을 추가합니다.
+const DEVELOPMENT_CONFIG = {
+  innateLabels: { intelligence: '지능', diligence: '선천적 성실성', focus: '집중력', sociability: '사회성 잠재력',
+    creativity: '창의성 잠재력', researchAptitude: '연구 적성', stamina: '체력 잠재력', resilience: '회복력' },
+  skillLabels: { academic: '학업 역량', research: '연구 역량', practice: '실무 역량', language: '외국어 역량',
+    social: '사회성·면접 역량', diligence: '학습 습관', project: '프로젝트 역량' },
+  innateRange: [24, 74], strengthRange: [82, 94], weaknessRange: [16, 30],
+  skillCap: 97, perActionCap: 2, diminishingPower: 1.6, baseGrowth: 1.5,
+  randomRange: [.85, 1.15], legacyInnate: 50,
+  highSchools: ['새봄', '가람', '솔마루', '해솔', '온빛', '별숲'],
+  retryGeneralCap: 6, retrySubjectCap: 6, retryMaximumIncrease: 10,
+  ratingWeights: {
+    overall: { academic: .22, research: .20, practice: .15, language: .13, social: .12, diligence: .10, project: .08 },
+    employment: { academic: .15, research: .10, practice: .30, language: .10, social: .20, diligence: .05, project: .10 },
+    masters: { academic: .30, research: .30, practice: .05, language: .15, social: .10, diligence: .05, project: .05 },
+    phd: { academic: .10, research: .45, practice: .05, language: .15, social: .10, diligence: .05, project: .10 },
+  },
+  activities: {
+    study: { academic: 1, diligence: .35 }, lab: { research: 1, academic: .25, diligence: .25 },
+    newsLab: { research: 1, academic: .25 }, club: { project: 1, social: .45 }, newsClub: { project: 1, social: .4 },
+    cafe: { practice: .8, social: .4, diligence: .25 }, tutor: { academic: .45, practice: .65, social: .45 },
+    language: { language: 1.1, diligence: .2 }, rest: { diligence: .12 },
+    competitionJoin: { social: .5, project: .5 }, competitionPrep: { project: 1, research: .45, social: .2 },
+    capstone: { project: 1.2, research: .3 }, industry: { practice: .9, project: .7 },
+    industryReferral: { practice: .8, project: .6 }, seminar: { language: .6, social: .5 },
+    peerHelp: { social: .7, academic: .4 }, research: { research: 1, academic: .3 }, presentation: { research: .5, social: .9 },
+    RA: { research: .9, practice: .5 }, TA: { social: .7, academic: .5 },
+    'lab-project': { research: 1, project: .5 }, 'lab-paper': { research: 1.2, academic: .4 },
+    'lab-conference': { research: .5, social: 1 }, internship: { practice: 1, project: .4 },
+    exchange: { language: 1, social: .6 }, jobTraining: { practice: .9, project: .7 },
+    workProject: { practice: 1, project: .7 }, workResearch: { research: .8, practice: .6 },
+    workBalance: { practice: .7, diligence: .4 }, workInnovation: { project: 1, practice: .5 },
+    self: { academic: 1, diligence: .5 }, academy: { academic: 1.15, diligence: .25 },
+    math: { academic: 1 }, english: { language: .8, academic: .5 }, weak: { academic: 1 },
+  },
+};
+const INNATE_TRAITS = {
+  quick: { title: '빠른 이해력', source: 'intelligence', learning: { academic: 1.12 } },
+  effort: { title: '노력파', source: 'diligence', learning: { diligence: 1.12 }, consistency: 1.1 },
+  perfectionist: { title: '완벽주의', source: 'focus', learning: { research: 1.08 }, researchQuality: .035, stress: 2 },
+  social: { title: '사교적인 성격', source: 'sociability', learning: { social: 1.12 }, interview: .035 },
+  athletic: { title: '뛰어난 체력', source: 'stamina', learning: { diligence: 1.05 }, endurance: .04 },
+  creative: { title: '창의적인 사고', source: 'creativity', learning: { project: 1.12 }, researchQuality: .025 },
+  explorer: { title: '끈기 있는 탐구자', source: 'researchAptitude', learning: { research: 1.12 } },
+  resilient: { title: '다시 일어서는 회복력', source: 'resilience', condition: .04 },
+};
+const DIFFICULTIES = {
+  easy: { title: '쉬움', growth: 1.12, competition: -4, scholarship: 1.08, living: .90, eventRisk: .8 },
+  normal: { title: '보통', growth: 1, competition: 0, scholarship: 1, living: 1, eventRisk: 1 },
+  hard: { title: '어려움', growth: .85, competition: 5, scholarship: .88, living: 1.15, eventRisk: 1.25 },
+};
