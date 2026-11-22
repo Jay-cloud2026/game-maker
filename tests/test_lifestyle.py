@@ -11,6 +11,7 @@ def run():
         errors = []
         page = start_budget(b, errors)
         page.evaluate("state.money=500;commit()")
+        page.locator("#character-drawer > summary").click()
         page.locator("#lifestyle-button").click()
         before = page.evaluate("state.energy")
         click(page, "조깅")

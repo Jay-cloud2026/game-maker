@@ -281,42 +281,39 @@ function selectOptions(values, defaultValue) {
 }
 function renderCharacter() {
   const scene = setScene('새 이야기 · 고등학교 졸업', '어떤 나로 시작할까?',
-    '기본 시작은 2026년, 고3을 마친 18세입니다. 이 게임의 나이는 생일과 무관한 연도 기준(현재 연도 − 출생 연도)입니다.');
+    '고등학교를 마친 18세. 네 가지 정보로 나만의 이야기를 시작하세요.');
   const form = element('form', undefined, 'character-form');
   const name = element('input'); name.type = 'text'; name.maxLength = 24; name.required = true; name.value = '새봄';
   formField(form, 'character-name', '이름', name);
-  const gender = selectOptions([['', '선택하지 않음'], ['여성', '여성'], ['남성', '남성'], ['기타', '기타']]);
-  formField(form, 'character-gender', '성별 (선택 사항 · 입시 평가에 반영하지 않음)', gender);
+  const gender = selectOptions([['여성', '여성'], ['남성', '남성']]);
+  formField(form, 'character-gender', '성별', gender);
+  const genderNotice = element('p', undefined, 'muted');
+  const updateGender = () => { genderNotice.textContent = gender.value === '남성' ?
+    '남성: 병역 의무가 게임 진행에 포함됩니다.' : '여성: 병역 의무 이벤트가 적용되지 않습니다.'; };
+  gender.addEventListener('change', updateGender); updateGender();
   const birth = element('input'); birth.type = 'number'; birth.min = '1900'; birth.max = '2100'; birth.required = true; birth.value = LIFE_CONFIG.birthYear;
   formField(form, 'character-birth', '출생 연도', birth);
-  const age = element('input'); age.type = 'number'; age.min = '16'; age.max = '70'; age.required = true; age.value = LIFE_CONFIG.startAge;
-  formField(form, 'character-age', '시작 나이', age);
-  const personality = selectOptions(Object.entries(LIFE_CONFIG.personalities).map(([id, data]) => [id, data.title]));
-  formField(form, 'character-personality', '성격 특성', personality);
-  const interest = selectOptions(LIFE_CONFIG.interests.map(value => [value, value]));
-  formField(form, 'character-interest', '관심 전공 분야', interest);
   const highSchool = element('input'); highSchool.maxLength = 40;
   formField(form, 'character-high-school', '고등학교 이름 (비우면 가상 학교 자동 생성)', highSchool);
-  const military = selectOptions([['no', '비대상'], ['yes', '대상']]);
-  formField(form, 'character-military', '병역 대상 여부 (성별 선택과 별개로 설정)', military);
-  const difficulty = selectOptions(Object.entries(DIFFICULTIES).map(([id, data]) => [id, data.title]), 'normal');
-  formField(form, 'character-difficulty', '난이도 (성장·선발·장학금·생활비·위험도에 반영)', difficulty);
   const preview = element('p', undefined, 'muted');
   function updatePreview() {
-    preview.textContent = `시작 연도 ${Number(birth.value) + Number(age.value)}년 · 수능 성적표 ${Number(birth.value) + Number(age.value) + 1}학년도`;
+    preview.textContent = `18세 · ${Number(birth.value) + 18}년 시작`;
   }
-  birth.addEventListener('input', updatePreview); age.addEventListener('input', updatePreview); updatePreview();
+  birth.addEventListener('input', updatePreview); updatePreview();
+  form.append(genderNotice, element('p', '병역은 게임 내 단순화된 규칙이며 현실의 모든 법적 예외를 설명하지 않습니다.', 'muted'));
   form.append(preview, element('p', '능력치와 고교 성적은 시작할 때 한 번 생성해 저장합니다. 각 인물에게 서로 다른 강점과 약점이 생깁니다.', 'muted'));
   const submit = element('button', '캐릭터 생성하고 시작', 'primary'); submit.type = 'submit';
   form.append(submit);
   const submitChoice = choose('character', () => {
     state.character = generateCharacter({
-      name: name.value.trim(), gender: gender.value, birthYear: Number(birth.value), startAge: Number(age.value),
-      personality: personality.value, interest: interest.value, highSchool: highSchool.value,
+      name: name.value.trim(), gender: gender.value, birthYear: Number(birth.value), startAge: 18,
+      personality: Object.keys(LIFE_CONFIG.personalities)[randomInt(0, Object.keys(LIFE_CONFIG.personalities).length - 1)],
+      interest: LIFE_CONFIG.interests[randomInt(0, LIFE_CONFIG.interests.length - 1)], highSchool: highSchool.value,
     });
     state.development = makeDevelopment(state.character, false, {
-      difficulty: difficulty.value, militarySubject: military.value === 'yes',
+      militarySubject: gender.value === '남성',
     });
+    state.development.setup.militaryRule = 'gender-v1';
     for (const channel of ['academic', 'language', 'social', 'diligence']) syncLearnedAbility(channel);
     state.life.year = state.character.birthYear + state.character.startAge;
     state.money = Math.max(30, CONFIG.initial.money + Math.round((state.character.abilities.economy - 50) * 1.5));
@@ -338,23 +335,33 @@ function renderEntranceExplore() {
   const attempt = entranceAttempt();
   const scene = setScene(`${attempt.year + 1}학년도 · 가상 통합 전형`, '대학과 전공을 탐색하자',
     `한 모집에 최대 ${LIFE_CONFIG.admissions.maxApplications}곳, 대학당 1개 전공에 지원합니다. 접수비는 원서 접수 때 한 번 지출합니다. 확률은 합격 보장이 아닙니다.`);
-  scene.append(element('p', '입학 후 매 학기 등록금·주거비·기본 생활비를 실제 정산합니다. 장학금·주거 선택·대출로 계획할 수 있습니다.', 'muted'));
+  const selectedList = element('div', undefined, 'selection-summary');
+  selectedList.append(element('h3', `선택 ${state.entrance.selection.length} / ${LIFE_CONFIG.admissions.maxApplications}곳`));
+  list(selectedList, state.entrance.selection.map(c => `${universityById(c.university).name} · ${c.major}`));
+  const total = state.entrance.selection.reduce((sum, c) => sum + universityById(c.university).fee, 0);
+  addButton(selectedList, '접수비를 내고 원서 접수', `${total}만원 · 제출 후 결과를 바로 확인합니다.`,
+    choose('collegeExplore', submitCollegeApplications), !state.entrance.selection.length || state.money < total, true);
+  scene.append(selectedList);
   for (const university of UNIVERSITIES) {
     const card = element('div', undefined, 'opportunity');
     const selected = state.entrance.selection.find(choice => choice.university === university.id);
     const probability = admissionProbability(university, attempt.exam);
-    card.append(element('h3', university.name), element('p', `${university.region} · ${university.type} · ${university.tier}`));
-    list(card, [
-      `합격 가능성 ${(probability * 100).toFixed(1)}% (${probabilityLabel(probability)}) · 난이도 ${university.difficulty}`,
+    card.append(element('h3', university.name), element('p', `${probabilityLabel(probability)} · 접수비 ${university.fee}만원 · 고교 졸업 지원 가능`));
+    const detail = element('details'); detail.append(element('summary', '비용·평가 기준'));
+    list(detail, [
+      `합격 가능성 ${(probability * 100).toFixed(1)}% (합격 보장 아님)`,
       `내신 ${Math.round(university.weights.school * 100)}% · 수능 ${Math.round(university.weights.exam * 100)}% · 비교과 ${Math.round(university.weights.activity * 100)}%`,
       `접수비 ${university.fee}만원 · 학기 등록금 ${university.tuition}만원 · 예상 주거비 ${university.housing}만원`,
       `${university.scholarship.title}: 수능 백분위 ${university.scholarship.minimum} 이상이면 ${university.scholarship.amount}만원 · 기숙사 ${university.dorm ? '있음' : '없음'}`,
       `${university.opportunities} / ${university.future}`,
-    ]);
+    ]); card.append(detail);
     const major = selectOptions(university.majors.map(value => [value, value]),
       selected?.major || (university.majors.includes(state.character.interest) ? state.character.interest : university.majors[0]));
     formField(card, `major-${university.id}`, '지원 전공', major);
-    if (selected) major.disabled = true;
+    if (selected) major.addEventListener('change', choose('collegeExplore', () => {
+      const choice = state.entrance.selection.find(c => c.university === university.id);
+      if (choice) choice.major = major.value;
+    }));
     const full = !selected && state.entrance.selection.length >= LIFE_CONFIG.admissions.maxApplications;
     addButton(card, selected ? `${university.name} 선택 취소` : `${university.name} 지원 목록에 담기`,
       selected ? selected.major : full ? '지원 가능 대학 수를 모두 선택했습니다.' : '이 단계에서는 접수비를 지출하지 않습니다.',
@@ -365,9 +372,20 @@ function renderEntranceExplore() {
     scene.append(card);
   }
   const choices = choiceContainer(scene);
-  addButton(choices, '원서 접수 확인으로', `${state.entrance.selection.length}곳 선택 · 선택한 전공은 취소 후 변경할 수 있습니다.`,
-    choose('collegeExplore', () => { if (state.entrance.selection.length) state.phase = 'collegeReview'; }), !state.entrance.selection.length, true);
   addButton(choices, '이번 모집에서 지원하지 않기', '재수·직업 교육 등의 선택을 확인합니다.', choose('collegeExplore', () => { state.phase = 'collegeDecision'; }));
+}
+function submitCollegeApplications() {
+  const attempt = entranceAttempt(), choices = state.entrance.selection;
+  const total = choices.reduce((sum, c) => sum + universityById(c.university).fee, 0);
+  if (attempt.submitted || !choices.length || choices.length > LIFE_CONFIG.admissions.maxApplications || state.money < total) return;
+  attempt.applications = choices.map(choice => {
+    const university = universityById(choice.university);
+    const probability = admissionProbability(university, attempt.exam), draw = Math.random();
+    return { ...choice, fee: university.fee, probability, draw, accepted: draw < probability, opened: true,
+      scholarship: attempt.exam.percentile >= university.scholarship.minimum ? university.scholarship.amount : 0 };
+  });
+  state.money -= total; attempt.submitted = true; state.phase = 'collegeMail';
+  log(`${choices.length}곳 지원 완료. ${attempt.applications.filter(a => a.accepted).length}곳 합격. 결과와 접수비 ${total}만원을 저장했다.`);
 }
 function renderCollegeReview() {
   const choices = state.entrance.selection;
@@ -376,42 +394,25 @@ function renderCollegeReview() {
   list(scene, choices.map(choice => `${universityById(choice.university).name} · ${choice.major} · 접수비 ${universityById(choice.university).fee}만원`));
   const buttons = choiceContainer(scene);
   addButton(buttons, '접수비를 내고 원서 접수', state.money < total ? '선택 불가: 잔액 부족. 지원 목록으로 돌아가 대학 수를 줄일 수 있습니다.' : '합격 결과는 이 순간 확정 저장되며 메일에서 공개합니다.',
-    choose('collegeReview', () => {
-      const attempt = entranceAttempt();
-      if (attempt.submitted || state.money < total || !choices.length) return;
-      attempt.applications = choices.map(choice => {
-        const university = universityById(choice.university);
-        const probability = admissionProbability(university, attempt.exam);
-        const draw = Math.random();
-        return {
-          ...choice, fee: university.fee, probability, draw, accepted: draw < probability, opened: false,
-          scholarship: attempt.exam.percentile >= university.scholarship.minimum ? university.scholarship.amount : 0,
-        };
-      });
-      state.money -= total;
-      attempt.submitted = true;
-      state.phase = 'collegeMail';
-      log(`${choices.length}곳에 원서를 접수했다. 접수비 ${total}만원. 결과는 개별 메일로 확인한다.`);
-    }), state.money < total, true);
+    choose('collegeReview', submitCollegeApplications), state.money < total, true);
   addButton(buttons, '지원 목록 수정', '아직 비용을 지불하지 않았습니다.', choose('collegeReview', () => { state.phase = 'collegeExplore'; }));
 }
 function renderCollegeMail() {
   const attempt = entranceAttempt();
-  const scene = setScene('대학 합격 발표', '결과 메일이 도착했다',
-    '학교별로 메일을 열어 보세요. 접수할 때 이미 확정된 결과이며, 새로고침하거나 다시 열어도 바뀌지 않습니다.');
+  const accepted = attempt.applications.filter(a => a.accepted).length;
+  const scene = setScene('대학 합격 발표', accepted ? `${accepted}곳 합격! 새로운 출발선입니다` : '이번 도전은 여기까지, 다음 길은 열려 있습니다',
+    accepted ? '준비해 온 시간이 진학 기회로 이어졌습니다. 합격한 대학을 비교해 보세요.' : '재수로 다시 준비하거나 직업 교육·취업으로 출발할 수 있습니다.');
   const choices = choiceContainer(scene);
   for (const app of attempt.applications) {
     const university = universityById(app.university);
-    if (app.opened) scene.append(element('p', `${university.name} · ${app.major}: ${app.accepted ? '합격' : '불합격'}`));
-    else addButton(choices, `${university.name} 합격 결과 메일 열기`, app.major, choose('collegeMail', () => {
-      if (app.opened) return;
-      app.opened = true;
-      log(`${attempt.year + 1}학년도 ${university.name} ${app.major}: ${app.accepted ? '합격' : '불합격'}.`);
-    }));
+    const card = element('div', undefined, app.accepted ? 'result-card achievement' : 'result-card');
+    card.append(element('h3', `${university.name} · ${app.accepted ? '합격' : '불합격'}`), element('p', app.major));
+    if (app.accepted && app.scholarship) card.append(element('p', `입학 장학금 ${app.scholarship}만원 · 첫 학기 등록금 감면`));
+    scene.append(card);
   }
-  const unopened = attempt.applications.some(app => !app.opened);
-  addButton(choices, '진학 선택으로', unopened ? '모든 메일을 먼저 열어 주세요.' : '합격한 대학 비교 또는 재도전',
-    choose('collegeMail', () => { if (!unopened) state.phase = 'collegeDecision'; }), unopened, true);
+  scene.append(choices);
+  addButton(choices, '진학 선택으로', '합격한 대학 비교 또는 재도전',
+    choose('collegeMail', () => { attempt.applications.forEach(a => { a.opened = true; }); state.phase = 'collegeDecision'; }), false, true);
 }
 function beginRetake() {
   const attempt = entranceAttempt();
@@ -567,7 +568,7 @@ function renderLifeSidebar() {
     schoolLabel = `${p.country} ${p.school} / ${degreeName(d.degree)} ${d.semester}학기`;
   }
   $('life-summary').textContent = character ?
-    `${character.name} · ${characterAge()}세 · ${state.life.year}년 ${state.life.half ? '하반기' : '상반기'} · ${schoolLabel}` :
+    `${character.name} · ${schoolLabel}` :
     '고등학교 졸업부터 시작하는 나의 이야기';
   $('stress').textContent = character ? `${character.abilities.stress} / 100` : '—';
   $('happiness').textContent = character ? `${character.abilities.happiness} / 100` : '—';

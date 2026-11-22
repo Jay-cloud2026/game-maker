@@ -32,7 +32,7 @@ def test_ending_and_continue(browser, errors):
     assert page.evaluate("validSave(state)")
     click(page, "취업 엔딩으로 마무리")
     assert phase(page) == "ending"
-    assert page.locator("#stage").inner_text() == "취업 엔딩"
+    assert page.locator("#stage").inner_text().endswith("취업 엔딩")
     contract = page.evaluate("state.reflection.snapshot.employment")
     assert contract["company"] == "한빛테크놀로지"
     assert contract["salary"] == 4200
@@ -48,6 +48,7 @@ def test_ending_and_continue(browser, errors):
     stored = page.evaluate("JSON.stringify(state.reflection.snapshot)")
     page.reload()
     assert page.evaluate("JSON.stringify(state.reflection.snapshot)") == stored
+    page.locator("#records-drawer > summary").click()
     page.locator("#journal-button").click()
     assert "계약 연봉 4200만원" in page.locator("#journal-content").inner_text()
     page.locator("#journal-close").click()

@@ -20,8 +20,9 @@ def run():
         for i, name in enumerate(names):
             if i:
                 switch(page, i)
-            page.locator("#character-difficulty").select_option(["easy", "normal", "hard", "normal"][i])
             create_character(page, name=name)
+            # Legacy difficulty-bearing records must stay readable in all four slots.
+            page.evaluate("(difficulty)=>{state.development.difficulty=difficulty;commit()}", ["easy", "normal", "hard", "normal"][i])
             page.locator("#manual-save").click()
             assert "수동 저장 완료" in page.locator("#save-status").inner_text()
         before = page.evaluate("JSON.stringify(slotStore.slots.map(s=>s.data))")
@@ -34,6 +35,7 @@ def run():
         assert page.evaluate("slotStore.slots[0].data.development.difficulty") == "easy"
         assert page.evaluate("slotStore.slots[2].data.development.difficulty") == "hard"
         page.on("dialog", lambda d: d.accept())
+        page.goto(page.url + "?dev=1")
         with page.expect_download() as info:
             page.locator("#slots-export").click()
         assert "4슬롯" in info.value.suggested_filename

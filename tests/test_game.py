@@ -19,7 +19,20 @@ def legacy_state():
 
 
 def button(page, title):
-    return page.locator("#scene button").filter(has=page.get_by_text(title, exact=True))
+    target = page.locator("#scene button").filter(has=page.get_by_text(title, exact=True))
+    if target.count() == 1:
+        reveal(target)
+    return target
+
+
+def reveal(target):
+    """Open advanced drawers through their real summary controls before using them."""
+    for details in target.locator("xpath=ancestor::details").all():
+        if target.evaluate("(el, d)=>el.tagName==='SUMMARY' && el.parentElement===d", details.element_handle()):
+            continue
+        if not details.get_attribute("open") == "":
+            details.locator(":scope > summary").click()
+    return target
 
 
 def click(page, title):
@@ -159,7 +172,7 @@ def run():
             assert page.locator("#scene tbody tr").count() == 4
             snapshot = page.evaluate("JSON.stringify({reports:state.terms.map(t=>t.report),gpa:cumulativeGpa()})")
             # 기록을 두 번 열고 새로고침해도 성적과 누적 평점이 바뀌지 않습니다.
-            page.locator("#academic-menu > summary").click()
+            reveal(page.locator("#academic-menu > summary")).click()
             archive = page.locator("#reports > details").first
             archive.locator("summary").click()
             archive.locator("summary").click()

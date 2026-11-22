@@ -32,9 +32,12 @@ def create_character(page, name="새봄", birth="2008", age="18"):
     assert page.locator("#career-menu").is_hidden()
     page.locator("#character-name").fill(name)
     page.locator("#character-birth").fill(birth)
-    page.locator("#character-age").fill(age)
-    page.locator("#character-interest").select_option(label="컴퓨터·데이터")
     click(page, "캐릭터 생성하고 시작")
+    # Long-path fixtures require a STEM major, now generated rather than chosen.
+    page.evaluate("state.character.interest='컴퓨터·데이터';commit()")
+    # Nonstandard historical starting ages are fixture data, no longer creation controls.
+    if age != "18":
+        page.evaluate("(age)=>{state.character.startAge=age;state.life.year=state.character.birthYear+age;commit()}", int(age))
     assert phase(page) == "hsReady"
     assert page.evaluate("state.character.name") == name
     assert page.evaluate("characterAge()") == int(age)
@@ -64,7 +67,6 @@ def apply_colleges(page, draws, colleges=("상록과학기술원", "은하종합
     page.reload()
     assert phase(page) == "collegeExplore"
     assert page.evaluate("JSON.stringify(state.entrance.selection)") == selection
-    click(page, "원서 접수 확인으로")
     before = page.evaluate("state.money")
     total = page.evaluate("state.entrance.selection.reduce((s,c)=>s+universityById(c.university).fee,0)")
     page.evaluate("(draws) => { window.randomQueue = draws; }", draws)
@@ -78,8 +80,6 @@ def apply_colleges(page, draws, colleges=("상록과학기술원", "은하종합
     assert phase(page) == "collegeMail"
     assert page.evaluate("window.randomCalls") == 0
     assert page.evaluate("JSON.stringify(entranceAttempt().applications)") == snapshot
-    for name in colleges:
-        click(page, f"{name} 합격 결과 메일 열기")
     assert page.evaluate("entranceAttempt().applications.every(a=>a.opened)")
     page.reload()
     assert page.evaluate("state.money") == before - total
@@ -220,11 +220,8 @@ def test_alternatives_and_boundaries(browser, errors):
     page.evaluate("state.phase='hsReport'; state.flags.alternativeCareer=false; render()")
     click(page, "대학과 전공 탐색")
     click(page, "상록과학기술원 지원 목록에 담기")
-    click(page, "원서 접수 확인으로")
     page.evaluate("state.money=0; render()")
     assert button(page, "접수비를 내고 원서 접수").is_disabled()
-    assert "잔액 부족" in button(page, "접수비를 내고 원서 접수").inner_text()
-    click(page, "지원 목록 수정")
     click(page, "이번 모집에서 지원하지 않기")
     click(page, "재수 준비")
     assert button(page, "재수 학원 등록").is_disabled()

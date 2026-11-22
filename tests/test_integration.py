@@ -55,8 +55,7 @@ def run():
               living:termQuote().living,growth:difficultyConfig().growth,risk:difficultyConfig().eventRisk});
           }
           state=JSON.parse(original);
-          return ['college','graduate','job','scholarship','growth'].every(k=>values[0][k]>values[1][k]&&values[1][k]>values[2][k]) &&
-            ['living','risk'].every(k=>values[0][k]<values[1][k]&&values[1][k]<values[2][k]) &&
+          return ['college','graduate','job','scholarship','growth','living','risk'].every(k=>values[0][k]===values[1][k]&&values[1][k]===values[2][k]) &&
             values.every(v=>v.college<1&&v.graduate<1&&v.job<1);
         }""")
         assert page.evaluate("""() => {
@@ -74,7 +73,7 @@ def run():
         assert page.evaluate("saveAvailable") is False
         assert not errors, errors
         b.close()
-        print("PASS 통합 9단계: 해외석사→국내박사 UI 완주·학위 엔딩/모바일·7종 난이도 계수·재수 상한·동시 저장 보호")
+        print("PASS 통합 9단계: 해외석사→국내박사 UI 완주·학위 엔딩/모바일·7종 기본 계수 통일·재수 상한·동시 저장 보호")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 // 선천적 잠재력은 고정, 후천적 역량은 기록된 유효 활동으로만 성장합니다.
 function initialDevelopmentFields() { return { development: null }; }
-function difficultyConfig(value = state) { return DIFFICULTIES[value.development?.difficulty || 'normal']; }
+// Legacy difficulty remains readable, but never changes future balance.
+function difficultyConfig() { return DIFFICULTIES.normal; }
 function hashCharacter(character) {
   let hash = 2166136261;
   for (const letter of `${character.name}:${character.birthYear}`) hash = Math.imul(hash ^ letter.charCodeAt(0), 16777619) >>> 0;
@@ -190,7 +191,7 @@ function renderDevelopmentProfile() {
   if (!state.development) return;
   const ratings = careerRatings();
   list($('development-profile'), [`종합 OVR ${ratings.overall.toFixed(1)} · 취업 ${ratings.employment.toFixed(1)} · 석사 ${ratings.masters.toFixed(1)} · 박사 ${ratings.phd.toFixed(1)}`,
-    `난이도: ${difficultyConfig().title} · 현재 학습 컨디션 ${(developmentCondition() * 100).toFixed(0)}%`,
+    `현재 학습 컨디션 ${(developmentCondition() * 100).toFixed(0)}%`,
     '경쟁력은 준비 상태를 비교하는 지표이며 합격 확률이나 합격 보장이 아닙니다.',
     state.development.origin === 'migrated' ? '이전 저장본: 선천 정보는 미기록 기본값 50, 기존 능력은 후천 이력으로 인정했습니다.' : '선천 특성은 고정이며 실제 활동을 통해 후천 역량이 성장합니다.']);
   const innate = element('details'); innate.append(element('summary', '선천적 잠재력 (고정)'));

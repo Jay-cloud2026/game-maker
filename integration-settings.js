@@ -45,7 +45,7 @@ const INNATE_TRAITS = {
   resilient: { title: '다시 일어서는 회복력', source: 'resilience', condition: .04 },
 };
 const DIFFICULTIES = {
-  easy: { title: '쉬움', growth: 1.12, competition: -4, scholarship: 1.08, living: .90, eventRisk: .8 },
+  easy: { title: '기본', growth: 1, competition: 0, scholarship: 1, living: 1, eventRisk: 1 },
   normal: { title: '보통', growth: 1, competition: 0, scholarship: 1, living: 1, eventRisk: 1 },
-  hard: { title: '어려움', growth: .85, competition: 5, scholarship: .88, living: 1.15, eventRisk: 1.25 },
+  hard: { title: '기본', growth: 1, competition: 0, scholarship: 1, living: 1, eventRisk: 1 },
 };

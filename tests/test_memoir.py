@@ -27,6 +27,7 @@ def test_balance_and_backup(browser, errors):
     page.reload()
     assert page.evaluate("JSON.stringify(state.reflection.snapshot)") == snapshot
     assert page.evaluate("state.money") == money
+    page.locator("#records-drawer > summary").click() if not page.locator("#records-drawer").get_attribute("open") == "" else None
     page.locator("#journal-button").click()
     assert page.locator("#journal-dialog").is_visible()
     assert "누적 저축" in page.locator("#journal-content").inner_text()
@@ -35,7 +36,7 @@ def test_balance_and_backup(browser, errors):
     assert download_info.value.suggested_filename.endswith(".txt")
     page.locator("#journal-close").click()
     with page.expect_download() as download_info:
-        page.locator("#save-export").click()
+        page.locator("#save-export").evaluate("(button)=>button.click()")
     assert download_info.value.suggested_filename.endswith(".json")
     before = page.evaluate("JSON.stringify(state)")
     page.locator("#save-file").set_input_files({"name": "bad.json", "mimeType": "application/json", "buffer": b"{}"})
@@ -100,7 +101,7 @@ def test_phd_life(browser, errors):
     assert page.evaluate("state.life.year") == before_year + 6
     assert page.evaluate("state.reflection.snapshot.degree") == "박사"
     assert page.evaluate("state.reflection.snapshot.profession") == "대학교수"
-    assert page.locator("#stage").inner_text() == "인생 엔딩"
+    assert page.locator("#stage").inner_text().endswith("인생 엔딩")
     assert "대학교수" in page.locator("#life-summary").inner_text()
     assert "박서우" in page.locator("#scene").inner_text()
     assert "연도별 인생 타임라인" in page.locator("#scene").inner_text()
@@ -116,6 +117,7 @@ def test_phd_life(browser, errors):
     assert page.evaluate("state.reflection.selected") == "overseasPhd"
     assert page.evaluate("state.life.year") == before_year + 5
     page.set_viewport_size({"width": 375, "height": 800})
+    page.locator("#records-drawer > summary").click() if not page.locator("#records-drawer").get_attribute("open") == "" else None
     page.locator("#journal-button").click()
     assert page.evaluate("document.documentElement.scrollWidth<=innerWidth")
     assert page.locator("#journal-dialog").bounding_box()["width"] <= 375

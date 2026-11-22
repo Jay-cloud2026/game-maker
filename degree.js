@@ -167,7 +167,8 @@ function renderDegree() {
     return;
   }
   const scene = setScene(`${degreeName(d.degree)} ${d.semester}학기 · 기본 ${d.policy.semesters}학기`, `${p.school} / ${p.lab}`,
-    `주요 행동 ${t.actions.length}/3 · 주제 ${d.topic} · 자료 ${d.data} · 전공지식 ${d.knowledge} · 논문작성 ${d.thesis} · 논문 ${d.paper} · 학회 ${d.conference} · 피드백 ${d.feedback}`);
+    `남은 주요 행동 ${3 - t.actions.length}회 · ${degreeMissing(d).length ? `다음 목표: ${degreeMissing(d)[0]}` : '학위 심사 준비 완료'}`);
+  const firstDetail = scene.children.length;
   addButton(scene, '대학원 연구실·학회 활동', '기존 연구실·어학·추천서 시스템과 연결 · 등록 정산 후 활동 가능',
     choose('graduateTerm', () => openStudy('graduateTerm')));
   if (!t.paid) {
@@ -190,4 +191,5 @@ function renderDegree() {
   addButton(scene, '잠시 쉬고 생활비 상담', '학기당 1회 · 행동 소모 없음 · 체력 30, 자금 30 지원', choose('graduateTerm', () => {
     if (t.support) return; t.support = true; applyEffects({ energy: 30, money: 30 });
   }), t.support);
+  compactDegree(scene, firstDetail, d, t);
 }

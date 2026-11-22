@@ -5,7 +5,7 @@ from datetime import datetime
 from playwright.sync_api import sync_playwright
 from test_career import graduate_page
 from test_life import new_page
-from test_game import click, phase, hire_and_work
+from test_game import click, phase, hire_and_work, reveal
 from test_degree import complete_degree
 
 
@@ -39,7 +39,7 @@ def work_year(page, title):
 
 
 def finalize(page, path):
-    page.locator("#life-review-button").click()
+    reveal(page.locator("#life-review-button")).click()
     page.locator("#life-path").select_option(path)
     report = page.evaluate("state.lifeAssessment.records.at(-1)")
     assert report["paths"][path]["grade"] == "SSS", report["paths"][path]
@@ -102,7 +102,7 @@ def test_multiple_sss(browser, errors):
         page.evaluate("window.ratingTestRandom=Math.random;Math.random=()=>0")
         click(page, "제품 개발과 고객 검증")
         page.evaluate("Math.random=window.ratingTestRandom")
-        page.locator("#lifestyle-button").click()
+        reveal(page.locator("#lifestyle-button")).click()
         click(page, "충분한 수면")
         click(page, "생활 관리 마치기")
     states.append(finalize(page, "founder"))
@@ -126,14 +126,14 @@ def test_no_free_points_and_forty(browser, errors):
     frozen = page.evaluate("JSON.stringify(state.lifeAssessment.records.find(r=>r.id===state.lifeAssessment.forty.recordId))")
     before = page.evaluate("JSON.stringify({money:state.money,year:state.life.year,half:state.life.half,skills:state.development.skills,rng:state.development.rng,research:state.research,savings:state.savings,practice:state.practice,history:state.history})")
     random_calls = page.evaluate("window.randomCalls")
-    page.locator("#forty-review-button").click()
+    reveal(page.locator("#forty-review-button")).click()
     assert "40세 인생 이정표" in page.locator("#life-review-content").inner_text()
     page.locator("#life-review-content button").filter(has_text="계속 진행하기").click()
     for _ in range(3):
-        page.locator("#life-review-button").click()
+        reveal(page.locator("#life-review-button")).click()
         page.locator("#life-review-content button").filter(has_text="계속 진행하기").click()
     count = page.evaluate("state.lifeAssessment.records.length")
-    page.locator("#life-review-button").click()
+    reveal(page.locator("#life-review-button")).click()
     page.locator("#life-review-content button").filter(has_text="계속 진행하기").click()
     assert page.evaluate("state.lifeAssessment.records.length") == count
     assert page.evaluate("window.randomCalls") == random_calls
@@ -142,13 +142,13 @@ def test_no_free_points_and_forty(browser, errors):
     assert page.evaluate("state.lifeAssessment.forty.recordId") == captured
     assert page.evaluate("JSON.stringify(state.lifeAssessment.records.find(r=>r.id===state.lifeAssessment.forty.recordId))") == frozen
     # 자유 엔딩은 명시적 선택이며 결산 전 선택 화면으로 돌아올 수 있습니다.
-    page.locator("#life-review-button").click()
+    reveal(page.locator("#life-review-button")).click()
     page.once("dialog", lambda d: d.accept())
     page.locator("#life-review-content button").filter(has_text="이 결산으로 인생 마무리").click()
     assert phase(page) == "ending"
     final_id = page.evaluate("state.lifeAssessment.finalId")
     final_record = page.evaluate("JSON.stringify(state.lifeAssessment.records.find(r=>r.id===state.lifeAssessment.finalId))")
-    page.locator("#lifestyle-button").click()
+    reveal(page.locator("#lifestyle-button")).click()
     click(page, "정기 용돈 받기")
     click(page, "생활 관리 마치기")
     assert page.evaluate("state.lifeAssessment.finalId") == final_id
@@ -164,7 +164,7 @@ def test_no_free_points_and_forty(browser, errors):
     page.evaluate("""state.life.year=state.character.birthYear+39;state.lifeAssessment.lastAge=39;
       advanceTime(8,'review-age-jump');commit()""")
     assert page.evaluate("state.lifeAssessment.records.find(r=>r.id===state.lifeAssessment.forty.recordId).snapshot.age") == 43
-    page.locator("#forty-review-button").click()
+    reveal(page.locator("#forty-review-button")).click()
     assert "현재 43세 기록" in page.locator("#life-review-content").inner_text()
     page.locator("#life-review-content button").filter(has_text="계속 진행하기").click()
     # 이미 40세를 지난 구버전은 과거 나이/성과를 꾸미지 않고 현재 기록으로 알림을 제공합니다.

@@ -105,12 +105,16 @@ function renderJobBoard() {
   for (const company of COMPANIES) {
     const selected = state.career.selected.includes(company.id);
     const reason = hiringEligibility(company).join(' · ');
-    addButton(choiceContainer(scene), `${company.name} ${selected ? '선택 취소' : '지원 선택'}`,
-      `${company.type} · ${company.hiring.industry} · ${company.role} · 난이도 ${company.hiring.difficulty} · 학위 ${['제한 없음', '학사 이상', '석사 이상'][company.hiring.degree]} · 최소 GPA ${company.hiring.gpa}, 실무 ${company.hiring.practice}, 연구 ${company.hiring.research} · 평가 GPA ${Math.round(company.weights.gpa * 100)}%, 실무 ${Math.round(company.weights.practice * 100)}%, 연구 ${Math.round(company.weights.research * 100)}%, 면접 ${Math.round(company.weights.interview * 100)}% · 계약 연봉 ${company.salary}만원 · 연간 생활비 ${company.living}만원 · ${company.benefits} · 워라밸 ${company.balance}${reason ? ` · ${reason}` : ' · 지원 가능 (합격 보장 아님)'}`,
+    const card = element('div', undefined, 'opportunity'); scene.append(card);
+    addButton(card, `${company.name} ${selected ? '선택 취소' : '지원 선택'}`,
+      `${company.role} · 연봉 ${company.salary}만원 · ${reason || '지원 가능 (합격 보장 아님)'}`,
       choose('jobBoard', () => {
         if (selected) state.career.selected = state.career.selected.filter(id => id !== company.id);
         else if (!reason && state.career.selected.length < CAREER_CONFIG.maxApplications) state.career.selected.push(company.id);
       }), (!selected && reason) || (!selected && state.career.selected.length >= CAREER_CONFIG.maxApplications));
+    const details = element('details'); details.append(element('summary', '조건·근무환경 상세'),
+      element('p', `${company.type} · ${company.hiring.industry} · 학위 ${['제한 없음', '학사 이상', '석사 이상'][company.hiring.degree]} · 최소 GPA ${company.hiring.gpa}, 실무 ${company.hiring.practice}, 연구 ${company.hiring.research} · 연간 생활비 ${company.living}만원 · ${company.benefits} · 워라밸 ${company.balance}`));
+    card.append(details);
   }
   const choices = choiceContainer(scene);
   addButton(choices, '지원서 제출', `${state.career.selected.length}곳 · 접수비 없음 · 서류 결과는 지금 확정하여 저장`, choose('jobBoard', () => {

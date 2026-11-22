@@ -158,7 +158,7 @@ function settleTerm() {
   applyAbilities({ happiness: quote.happiness });
   ledgerTransaction('settlement', -quote.cashFlow,
     `등록금 ${quote.tuition}, 주거비 ${quote.rent}, 기본 생활비 ${quote.living}, 감면 ${quote.discount}, 보증금 납부 ${quote.deposit}/반환 ${quote.refund}`);
-  log(`${semesterName()} 정산 완료. 총 현금 지출 ${quote.cashFlow}만원, 보증금 자산 ${quote.deposit}만원. 통학 ${housing.commute}분, 체력 ${housing.energy}, 행복도 ${housing.happiness >= 0 ? '+' : ''}${housing.happiness}.`);
+  log(`${semesterName()} 시작! 이번 지출 ${quote.cashFlow}만원 · 장학금 감면 ${quote.discount}만원. 주거·대출 내역은 인생 기록에 보관했습니다.`);
   state.phase = state.campus.budgetReturnPhase;
   startExchangeIfPlanned();
 }
@@ -318,6 +318,7 @@ function renderBudget() {
   const school = campusSchool();
   const scene = setScene('학기 시작 · 주요 행동 소모 없음', `${semesterName()}의 재정과 주거`,
     `${school.name}. 주거·장학금·대출을 결정한 뒤 등록합니다. 보증금은 지출이 아닌 반환 가능한 자산입니다.`);
+  const beforeDetails = scene.children.length;
   const choices = choiceContainer(scene);
   if (currentExchangePlan()) scene.append(element('p', '이번 학기는 해외 교류대학 기숙사를 이용합니다. 국내 보증금을 반환하며 국내 주거비와 중복 청구하지 않습니다.'));
   for (const housing of currentExchangePlan() ? [] : HOUSING) {
@@ -363,6 +364,15 @@ function renderBudget() {
   addButton(funding, '정산 확정하고 학기 시작', shortfall ? `선택 불가: ${shortfall}만원 부족` : '비용·보증금·주거 효과를 한 번만 적용합니다.',
     choose('termBudget', settleTerm), Boolean(shortfall), true);
   addButton(funding, '1년 휴학 신청', '등록 전 휴학 · 현재 학년 유지 · 임대 보증금 반환 · 별도 활동 3회', choose('termBudget', () => startLeave('termBudget')));
+  const nodes = Array.from(scene.children).slice(beforeDetails);
+  scene.append(element('p', `${quote.housing} · 현재 정산액 ${quote.cashFlow}만원 · 대출 잔액 ${state.campus.debt}만원`));
+  addButton(scene, '장학금 자동 신청하고 학기 시작',
+    `자격에 맞는 장학금을 한 번씩 신청합니다. 부족하면 무이자 대출 최대 ${borrowing}만원(활동비 포함)에 동의하고 시작합니다. 주거 변경·대출 없는 진행은 아래에서 선택하세요.`,
+    choose('termBudget', () => {
+      for (const scholarship of SCHOLARSHIPS) if (!scholarshipEligibility(scholarship, ledger.eligibility)) applyScholarship(scholarship.id);
+      borrowForBudget(); settleTerm();
+    }), overLimit, true);
+  foldDetails(scene, '주거 변경·직접 정산·휴학', nodes);
 }
 function renderGraduationReview() {
   const progress = academicProgress();

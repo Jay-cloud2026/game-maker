@@ -3,7 +3,7 @@
 from playwright.sync_api import sync_playwright
 from test_campus import start_budget
 from test_career import graduate_page
-from test_game import click, phase
+from test_game import click, phase, reveal
 
 
 def run():
@@ -12,11 +12,11 @@ def run():
         errors = []
         for grade, title, quarters in [(1, "육군 입대", 6), (4, "사회복무 시작", 7)]:
             page = start_budget(b, errors)
-            page.evaluate("(grade)=>{state.military.subject=true;state.military.grade=grade;commit()}", grade)
+            page.evaluate("(grade)=>{state.character.gender='남성';state.military.subject=true;state.military.grade=grade;commit()}", grade)
             before = page.evaluate("JSON.stringify(state.terms)")
             semester = page.evaluate("state.semester")
             clock = page.evaluate("state.life.year*12+state.life.half*6+(state.life.monthRemainder||0)")
-            page.locator("#military-button").click()
+            reveal(page.locator("#military-button")).click()
             click(page, title)
             for i in range(quarters):
                 page.evaluate("window.savedMilitaryRandom=Math.random;Math.random=()=>0")
@@ -37,7 +37,7 @@ def run():
             page.close()
         page = graduate_page(b, errors)
         page.evaluate("""state.master={program:'kr-ms',turn:2,actions:['연구 프로젝트'],research:8,completed:true};
-          state.research=10;state.military.subject=true;state.military.grade=3;state.phase='hub';commit()""")
+          state.character.gender='남성';state.research=10;state.military.subject=true;state.military.grade=3;state.phase='hub';commit()""")
         assert phase(page) == "militaryBoard"  # 졸업 후 학적 없음: 자동 연기 불가.
         click(page, "나래정밀 기업부설연구소")
         page.evaluate("window.randomQueue=[0,0]")
@@ -55,8 +55,8 @@ def run():
         page.evaluate("""state.master={program:'kr-ms',turn:4,actions:[],research:10,completed:true};
           startDegree(programById('kr-phd'));
           Object.assign(state.postgraduate.active,{semester:5,topic:1,knowledge:4,qualify:true,feedback:1,conference:1,data:12});
-          state.military.subject=true;state.military.grade=2;state.research=15;commit()""")
-        page.locator("#military-button").click()
+          state.character.gender='남성';state.military.subject=true;state.military.grade=2;state.research=15;commit()""")
+        reveal(page.locator("#military-button")).click()
         click(page, "한울대학교 지정 자연계대학원")
         page.evaluate("window.randomQueue=[0,0]")
         click(page, "박사 편입대상자 선발 지원")

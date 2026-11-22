@@ -152,7 +152,11 @@ function boot() {
   } else state = freshState();
   render();
 }
-function commit() { if (state.development) ensureUndergraduateGrowth(); enforceMilitary(); ensureMemoirSnapshot(); updateFortyMilestone(); save(); render(); }
+function commit() {
+  if (state.development) ensureUndergraduateGrowth();
+  if (state.phase === 'reportReady' && currentTerm().quickProgress) { makeReport(); state.phase = 'report'; }
+  enforceMilitary(); ensureMemoirSnapshot(); updateFortyMilestone(); save(); render();
+}
 function choose(phase, callback) {
   const revision = renderRevision;
   let used = false;
@@ -352,6 +356,7 @@ function renderSemester() {
   const progress = element('div', undefined, 'progress');
   for (let i = 0; i < 3; i++) progress.append(element('span', undefined, i < term.actions.length ? 'done' : ''));
   scene.append(progress);
+  const firstDetail = scene.children.length;
   addButton(scene, '학기 재정·주거 확인', `현재 주거 ${housingById(state.campus.housing.type).title} · 대출 ${state.campus.debt}만원 · 주요 행동 소모 없음`,
     choose('semester', () => openTermBudget()));
   addButton(scene, '사람들과 시간 보내기', 'NPC 대화·과제 돕기·연애 · 교류는 학기당 1회, 과제 돕기는 주요 행동 1회',
@@ -407,6 +412,7 @@ function renderSemester() {
       performAction({ id: 'industryReferral', title: '선배의 산학 협업', effects: { money: 20, energy: -15 }, research: 1, feedback: '예전 프로젝트에서 이어진 소개를 실제 현장 경험으로 연결했다.' });
     }), state.energy < 15);
   renderMeals(scene);
+  compactSemester(scene, firstDetail);
 }
 function renderMeals(scene) {
   scene.append(element('h3', '이번 학기의 한 끼'));
@@ -517,15 +523,20 @@ function renderReportPhase() {
   } else {
     const scene = setScene('확정 성적표', semesterName(), '이 성적표는 기록에 보관됩니다. 다시 열어도 결과는 바뀌지 않습니다.');
     renderReport(scene, currentTerm(), state.semester - 1);
-    addButton(choiceContainer(scene), '방학 계획 세우기', '유급 인턴 또는 회복의 시간', choose('report', () => { state.phase = 'vacation'; }));
+    renderVacationChoices(scene, 'report');
+    const detail = element('details'); detail.append(element('summary', '방학 안내 먼저 보기')); scene.append(detail);
+    addButton(choiceContainer(detail), '방학 계획 세우기', '유급 인턴 또는 회복의 시간', choose('report', () => { state.phase = 'vacation'; }));
   }
 }
 function renderVacation() {
   const scene = setScene('방학 · 주요 행동과 별도', '다음 학기 사이의 시간',
     `유급 인턴은 전공·연구·동아리 경험 합계 ${schoolPolicy().internshipThreshold}회 이상이면 선발됩니다. 지원 결과는 지원 후 공개됩니다.`);
+  renderVacationChoices(scene, 'vacation');
+}
+function renderVacationChoices(scene, phase) {
   const choices = choiceContainer(scene);
   addButton(choices, '유급 인턴 지원', `선발 시 생활비 +${CONFIG.internship.income}만원 · 체력 ${CONFIG.internship.energy} · 실무 경험 +${CONFIG.internship.experience}`,
-    choose('vacation', () => {
+    choose(phase, () => {
       if (currentTerm().vacationDone) return;
       const count = (state.experiences.study || 0) + (state.experiences.lab || 0) + (state.experiences.club || 0);
       const selected = count >= schoolPolicy().internshipThreshold;
@@ -537,7 +548,7 @@ function renderVacation() {
       currentTerm().vacationResult = selected ? '선발 메일이 도착했다. 유급 인턴으로 일하며 실무 경험과 생활비를 얻었다.' : '이번 인턴은 불합격했다. 부족한 경험을 확인하고 방학에는 쉬어 가기로 했다.';
       completeVacation();
     }));
-  addButton(choices, '방학 동안 쉬기', `체력 +${CONFIG.vacationRecovery}`, choose('vacation', () => {
+  addButton(choices, '방학 동안 쉬기', `체력 +${CONFIG.vacationRecovery}`, choose(phase, () => {
     if (currentTerm().vacationDone) return;
     currentTerm().vacationResult = '방학 동안 일정을 비우고 충분히 쉬었다.';
     completeVacation();
@@ -560,7 +571,8 @@ function renderHub() {
   const degree = mastersDone ? 'phd' : 'masters';
   const scene = setScene(state.reflection.phdCompleted ? '박사 학위 이후' : mastersDone ? '석사 졸업 이후' : '학사 졸업 이후', '다음 페이지를 선택하자',
     `지원에 실패하거나 제안을 거절해도 다시 준비할 수 있습니다. ${mastersDone ? `석사 연구 성과 ${state.master.research}` : `학부 누적 평점 ${cumulativeGpa().toFixed(2)}`} · 추천서 ${state.recommendations}`);
-  list(scene, careerEvidence().filter(item => item.id !== 'motivation').map(item => item.text));
+  const evidenceDetails = element('details'); evidenceDetails.append(element('summary', '내 진로 준비 기록')); scene.append(evidenceDetails);
+  list(evidenceDetails, careerEvidence().filter(item => item.id !== 'motivation').map(item => item.text));
   const choices = choiceContainer(scene);
   addButton(choices, '취업 지원', '실제 경험을 면접에 활용한 뒤 첫 직장에서 일하는 턴을 플레이합니다.',
     choose('hub', startHiring));
@@ -634,7 +646,7 @@ function startApplications(degree) {
 }
 function programDetail(program) {
   const p = program.admissions;
-  return `${program.country} · ${program.school} · ${program.topic} / 난이도 ${p.difficulty} · 최소 GPA ${p.gpa}, 권장 ${p.recommendedGpa}, 연구 ${p.research}, 추천서 ${p.recommendations}, 어학 ${p.language} · 면접 ${Math.round(program.weights.interview * 100)}% / 턴당 등록금 ${program.tuition}만원, 생활비 지원 ${program.stipend}만원, 예상 생활비 ${p.living}만원, 이사 ${program.moving}만원 / ${program.assistant} / ${p.mentor}`;
+  return `${program.country} · ${program.school} · ${program.topic} / 최소 GPA ${p.gpa}, 권장 ${p.recommendedGpa}, 연구 ${p.research}, 추천서 ${p.recommendations}, 어학 ${p.language} · 면접 ${Math.round(program.weights.interview * 100)}% / 턴당 등록금 ${program.tuition}만원, 생활비 지원 ${program.stipend}만원, 예상 생활비 ${p.living}만원, 이사 ${program.moving}만원 / ${program.assistant} / ${p.mentor}`;
 }
 function renderApplications() {
   const scene = setScene(`${degreeName(state.degree)} 모집 ${state.round}회차 · 1단계 지원`, '어디에 지원할까?',
@@ -643,12 +655,14 @@ function renderApplications() {
   for (const program of PROGRAMS.filter(item => item.degree === state.degree)) {
     const submitted = state.applications.some(app => app.id === program.id);
     const missing = graduateEligibility(program);
-    addButton(choices, `${program.country} ${program.title} 지원${submitted ? ' 완료' : ''}`,
-      `${programDetail(program)}${missing.length ? ` / 조건 미달: ${missing.join(', ')} (접수하면 서류 탈락)` : ' / 최소 조건 충족 · 합격 보장 아님'}`,
+    const card = element('div', undefined, 'opportunity'); choices.append(card);
+    addButton(card, `${program.country} ${program.title} 지원${submitted ? ' 완료' : ''}`,
+      `${program.school} · ${program.topic} · ${missing.length ? `조건 미달: ${missing.join(', ')} (접수하면 서류 탈락)` : '지원 가능 · 합격 보장 아님'}`,
       choose('application', () => {
         if (state.applications.some(app => app.id === program.id)) return;
         submitGraduateApplication(program);
       }), submitted);
+    const details = element('details'); details.append(element('summary', '지원 조건·비용 상세'), element('p', programDetail(program))); card.append(details);
   }
   addButton(choices, '지원 마감하고 면접 준비', `${state.applications.length}곳 지원 · 서류 심사 통과자만 면접을 봅니다.`,
     choose('application', () => {
@@ -815,7 +829,7 @@ function renderEnding() {
   appendEndingMemoir(scene);
   addButton(choiceContainer(scene), '다시 시작', '캐릭터 생성과 고교 졸업부터 새로운 선택으로', () => resetGame(), false, true);
 }
-function render() {
+function renderCore() {
   renderRevision++;
   renderSidebar();
   if (MILITARY_PHASES.includes(state.phase)) { $('stage').textContent = state.phase === 'service' ? '군/연구 복무' : '병역 일정'; renderMilitary(); return; }
@@ -875,6 +889,10 @@ function render() {
     case 'ending': renderEnding(); break;
   }
 }
+function render() {
+  renderCore();
+  renderCompactChrome();
+}
 function resetGame() {
   if (!confirm('현재 진행을 지우고 캐릭터 생성부터 다시 시작할까요?')) return;
   preserveUnreadableSave = false;
@@ -882,6 +900,21 @@ function resetGame() {
   commit();
 }
 $('restart').addEventListener('click', resetGame);
+$('nav-life').addEventListener('click', () => {
+  $('character-drawer').open = false; $('records-drawer').open = false;
+  $('scene').scrollIntoView({ block: 'start', behavior: 'smooth' });
+});
+for (const [button, drawer] of [['nav-character', 'character-drawer'], ['nav-records', 'records-drawer'], ['nav-relationships', 'records-drawer']]) {
+  $(button).addEventListener('click', () => {
+    if (button === 'nav-relationships' && state.phase === 'semester') {
+      state.phase = 'relationships'; commit(); return;
+    }
+    $(drawer).open = !$(drawer).open;
+    if (button === 'nav-relationships') { $(drawer).open = true; $('relationships-menu').open = true; }
+    $(drawer).scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+}
+$('relationships-open').addEventListener('click', () => { if (state.phase === 'semester') { state.phase = 'relationships'; commit(); } });
 $('slots-button').addEventListener('click', openSlots);
 $('life-review-button').addEventListener('click', () => openLifeReview());
 $('forty-review-button').addEventListener('click', () => openLifeReview(state.lifeAssessment.forty?.recordId));

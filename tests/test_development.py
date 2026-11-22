@@ -10,11 +10,11 @@ from test_game import click, prepare_term
 def test_creation(browser, errors):
     page = new_page(browser, errors)
     page.locator("#character-high-school").fill("나의고등학교")
-    page.locator("#character-difficulty").select_option("hard")
-    page.locator("#character-military").select_option("yes")
+    page.locator("#character-gender").select_option("남성")
+    assert page.locator("#character-difficulty").count() == 0
     click(page, "캐릭터 생성하고 시작")
     assert page.evaluate("state.character.highSchool") == "나의고등학교"
-    assert page.evaluate("state.development.difficulty") == "hard"
+    assert page.evaluate("state.development.difficulty") == "normal"
     assert page.evaluate("state.development.setup.militarySubject")
     initial = page.evaluate("JSON.stringify(state.development)")
     page.reload()
@@ -49,6 +49,7 @@ def test_growth(browser, errors):
     assert page.evaluate("JSON.stringify(state.development)") == growth
     assert page.evaluate("JSON.stringify(state.development.innate)") == innate
     assert page.evaluate("Object.values(careerRatings()).every(n=>n>=0&&n<=100)")
+    page.locator("#character-drawer > summary").click()
     assert page.locator("#ovr").inner_text().endswith("/ 100")
     assert page.evaluate("""() => {
       const original=JSON.stringify(state);
@@ -62,7 +63,7 @@ def test_growth(browser, errors):
       const easy=run(20,'easy',90,10), hard=run(20,'hard',90,10);
       const tired=run(20,'normal',5,95), quick=run(20,'normal',90,10,['quick']);
       state=JSON.parse(original);
-      return low>high && easy>hard && low>tired && quick>low;
+       return low>high && easy===hard && low>tired && quick>low;
     }""")
     assert page.evaluate("""() => {
       const original=JSON.stringify(state);
@@ -121,7 +122,7 @@ def run():
         test_v7_preserved(browser, errors)
         assert not errors, errors
         browser.close()
-        print("PASS 통합 2단계: 생성·잠재력 고정·완만한 실제 성장·OVR·특성/컨디션/난이도")
+        print("PASS 통합 2단계: 생성·잠재력 고정·완만한 실제 성장·OVR·특성/컨디션·기본 밸런스")
         print("PASS 통합 2단계: 독립 성장 난수·재접속/중복 방지·v7 필드 보존·백업 실패 보호")
 
 

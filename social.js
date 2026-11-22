@@ -148,11 +148,14 @@ function renderRelationships() {
     const npc = state.social.npcs[template.id];
     const card = element('div', undefined, 'opportunity');
     card.append(element('h3', `${template.name} · ${template.type}`));
-    list(card, [template.personality, `목표: ${template.goal} · 관심: ${template.interest}`,
-      `친밀도 ${npc.intimacy} (${relationshipLabel(npc)}) · 신뢰 ${npc.trust}`]);
-    if (template.romance) card.append(element('p', `연락 선호: ${template.contact} · 장거리 생각: ${template.distance}`));
+    card.append(element('p', `${template.type} · ${relationshipLabel(npc)} · ${template.goal}`));
+    const detail = element('details'); detail.append(element('summary', '성격·관계 상세'));
+    list(detail, [template.personality, `목표: ${template.goal} · 관심: ${template.interest}`,
+      `친밀도 ${npc.intimacy} · 신뢰 ${npc.trust}`]);
+    if (template.romance) detail.append(element('p', `연락 선호: ${template.contact} · 장거리 생각: ${template.distance}`));
+    card.append(detail);
     const choices = choiceContainer(card);
-    addButton(choices, `${withPerson(template.name)} 대화`, used ? '이번 학기 교류 시간을 사용했습니다.' : '교류 1회 · 친밀도 +12, 신뢰 +6, 스트레스 -6',
+    addButton(choices, `${withPerson(template.name)} 대화`, used ? '이번 학기 교류 시간을 사용했습니다.' : '함께 진로와 일상을 나눕니다 · 학기당 교류 1회',
       choose('relationships', () => {
         if (state.social.interactionUsed[state.semester]) return;
         state.social.interactionUsed[state.semester] = true;
@@ -277,7 +280,7 @@ function renderSocialSidebar() {
   $('relationships-records').replaceChildren();
   if (!admitted) return;
   list($('relationships-records'), NPCS.filter(template => state.social.npcs[template.id] && (template.availableSemester || 1) <= state.semester)
-    .map(template => `${template.name} (${template.type}): 친밀도 ${state.social.npcs[template.id].intimacy} / 신뢰 ${state.social.npcs[template.id].trust}`));
+    .map(template => `${template.name} (${template.type}) · ${relationshipLabel(state.social.npcs[template.id])}`));
   $('relationships-records').append(element('p', state.social.romance ?
     `${npcTemplate(state.social.romance.npc).name}과 ${state.social.romance.longDistance ? '장거리 연애 중' : '연애 중'}` : '현재 연애하지 않음 · 진로 선택에 필수 조건이 아닙니다.'));
   list($('relationships-records'), state.social.romanceHistory.map(record => `${record.year}년: ${record.text}`));

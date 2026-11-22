@@ -19,6 +19,9 @@ function writeSlotStore(next, confirmedReplace = false) {
   try {
     const raw = localStorage.getItem(SLOT_CONFIG.key);
     if (raw) {
+      // Keep the first pre-redesign record permanently, not just the rolling previous save.
+      const uxBackupKey = `${SLOT_CONFIG.key}:before-ux-v1`;
+      if (!localStorage.getItem(uxBackupKey)) localStorage.setItem(uxBackupKey, raw);
       let current;
       try { current = JSON.parse(raw); }
       catch { localStorage.setItem(`${SLOT_CONFIG.key}:unreadable`, raw); current = { revision: slotStore.revision }; }
@@ -120,7 +123,7 @@ function renderSlots() {
       list(card, [
         `${c.name} · ${d.life.year - c.birthYear}세 · ${c.highSchool}`,
         `현재 ${job?.name || school} · ${pg && !pg.completed ? `${degreeName(pg.degree)} ${pg.semester}학기` : semesterName(d.semester)}`,
-        `${slot.ovr === undefined ? '이전 훈련 OVR' : 'OVR'} ${slot.ovr ?? ovr} · 진로 ${d.life.highestDegree} · 난이도 ${DIFFICULTIES[d.development.difficulty].title}`,
+        `${slot.ovr === undefined ? '이전 훈련 OVR' : 'OVR'} ${slot.ovr ?? ovr} · 진로 ${d.life.highestDegree}`,
         `저장 ${slot.savedAt} · ${d.ending ? '엔딩 달성 이력 있음' : '진행 중'}`,
       ]);
     } else card.append(element('p', '빈 슬롯 · 새 캐릭터 시작'));

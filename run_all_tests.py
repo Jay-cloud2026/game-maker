@@ -11,7 +11,7 @@ ARTIFACTS.mkdir(exist_ok=True)
 TESTS = ["test_game.py", "test_life.py", "test_campus.py", "test_social.py",
          "test_study.py", "test_career.py", "test_memoir.py", "test_validation.py", "test_development.py", "test_graduate.py",
          "test_employment.py", "test_degree.py", "test_lifestyle.py", "test_military.py", "test_slots.py", "test_integration.py",
-         "test_life_assessment.py", "test_deployment.py"]
+         "test_life_assessment.py", "test_deployment.py", "test_ux.py"]
 result = {"started": datetime.datetime.now().isoformat(), "passed": [], "failed": None, "remaining": TESTS.copy()}
 
 

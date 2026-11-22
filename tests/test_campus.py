@@ -28,7 +28,7 @@ def test_finances(browser, errors):
     page = start_budget(browser, errors)
     click(page, "원룸 자취 선택")
     assert page.evaluate("termQuote().deposit") == 180
-    page.evaluate("window.randomQueue=[0]")
+    page.evaluate("state.campus.ledgers[1].eligibility.money=100;window.randomQueue=[0]")
     click(page, "생활비 장학금 신청")
     assert page.evaluate("state.campus.ledgers[1].applications.need.accepted")
     award_snapshot = page.evaluate("JSON.stringify(state.campus.ledgers[1].applications)")
@@ -194,6 +194,7 @@ def test_retake_and_extra(browser, errors):
     payments = page.evaluate("JSON.stringify(state.campus.transactions.filter(t=>t.kind==='repayment'))")
     page.reload()
     assert page.evaluate("JSON.stringify(state.campus.transactions.filter(t=>t.kind==='repayment'))") == payments
+    page.locator("#records-drawer > summary").click()
     page.locator("#assets-menu > summary").click()
     money = page.evaluate("state.money")
     page.locator("#assets button").filter(has=page.get_by_text("대출 직접 상환", exact=True)).click()

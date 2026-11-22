@@ -50,9 +50,27 @@ function openMilitary() {
 }
 function enforceMilitary() {
   const m = state.military;
+  // Old records are not rewritten. Female characters never receive new call-ups.
+  if (state.character?.gender === '여성') return;
   if (!m?.subject || [5,6].includes(m.grade) || m.service?.completed || (m.service && !m.service.completed)) return;
+  if (state.development?.setup.militaryRule === 'gender-v1' && characterAge() >= 19 &&
+      state.semester >= (m.nextPromptSemester || 3) && ['semester','termBudget'].includes(state.phase)) {
+    openMilitary(); return;
+  }
   if (characterAge() >= MILITARY_CONFIG.callupAge && !militaryDeferment().allowed &&
       ['semester','termBudget','retake','graduateTerm','hub','jobBoard','workTurn'].includes(state.phase)) openMilitary();
+}
+function automaticService() {
+  const m = state.military;
+  if (!m.subject || state.character.gender === '여성') return;
+  if (m.grade === null || m.grade === 7) assessMilitary();
+  // Re-examinations retain their actual elapsed time, without repeated forms.
+  for (let i = 0; m.grade === 7 && i < 3; i++) assessMilitary();
+  if ([5,6].includes(m.grade)) { log('병역 일정을 확인했다. 내부 판정에 따라 복무 없이 원래 생활을 이어간다.'); state.phase = m.returnPhase; return; }
+  if (m.candidate && !researchEligibility(m.candidate.route).length &&
+      (m.candidate.route !== 'phd' || (state.postgraduate.active.semester > MILITARY_CONFIG.phdCourseworkSemesters &&
+       state.postgraduate.active.knowledge >= 4 && state.postgraduate.active.qualify))) beginService('research');
+  else beginService(m.grade === 4 ? 'social' : 'army');
 }
 function assessMilitary() {
   const m = state.military;
@@ -173,7 +191,9 @@ function renderMilitary() {
   if (state.phase === 'militaryComplete') {
     const scene = setScene('복무 완료', `${MILITARY_CONFIG.service[s.type].title} ${s.months}개월`,
       `전역/소집해제 ${s.age}세 · 모은 자금 ${s.income}만원 · 연구 ${s.research} · 자격 ${m.certificates.join(', ') || '없음'}`);
-    list(scene, Object.keys(s.before.skills).map(k => `${DEVELOPMENT_CONFIG.skillLabels[k]} +${round(s.after[k] - s.before.skills[k])}`));
+    const detail = element('details'); detail.append(element('summary', '복무 중 성장 기록'));
+    list(detail, Object.keys(s.before.skills).map(k => `${DEVELOPMENT_CONFIG.skillLabels[k]} +${round(s.after[k] - s.before.skills[k])}`));
+    scene.append(detail);
     addButton(scene, '전역 후 원래 진행으로', '학부 성적·학기·기존 정산은 유지합니다.', choose('militaryComplete', () => {
       state.phase = state.postgraduate.active?.completed && s.phd ? 'graduateDone' :
         m.returnPhase === 'workTurn' && !state.career.employer ? 'hub' : m.returnPhase;
@@ -188,6 +208,7 @@ function renderMilitary() {
       addButton(scene, '학위 취득 후 연구기관 전직', `새빛융합 지정연구기관 채용동의에 따른 잔여 ${MILITARY_CONFIG.phdFieldMonths}개월 연구현장 복무`, choose('service', () => { s.transferred = true; s.institution = 'saebit'; log('학위 취득 후 지정연구기관으로 전직했다.'); }));
       return;
     }
+    const firstDetail = scene.children.length;
     for (const action of MILITARY_ACTIVITIES.filter(a => a.research === undefined || s.type === 'research')) {
       const disabled = (action.id === 'exam' && m.certificateProgress < 60) ||
         (action.id === 'defense' && (!s.phd || state.postgraduate.active.thesis < state.postgraduate.active.policy.thesis));
@@ -198,11 +219,28 @@ function renderMilitary() {
       const duration = Math.max(unit, Math.ceil(MILITARY_CONFIG.service[type].months * (1 - s.months / MILITARY_CONFIG.service.research.months) / unit) * unit);
       m.history.push({ ...s, cancelled: true }); m.service = null; m.candidate = false; beginService(type); m.service.duration = duration;
     }));
+    const nodes = Array.from(scene.children).slice(firstDetail);
+    addButton(scene, s.phd ? '6개월 연구·복무 이어가기' : '남은 복무를 마치고 돌아오기',
+      s.phd ? '학위 심사·전직 등 중요한 선택에서는 멈춥니다.' : '반복 관리는 자동으로 · 실제 복무 기간과 급여·성장 기록을 모두 반영합니다.',
+      choose('service', () => {
+        for (let i = 0; i < (s.phd ? 2 : 20) && state.phase === 'service'; i++) {
+          if (s.phd && ((s.months >= MILITARY_CONFIG.phdDegreeMonths && state.reflection.phdCompleted && !s.transferred) ||
+              s.grace >= MILITARY_CONFIG.phdGraceMonths)) break;
+          const d = state.postgraduate.active;
+          const id = state.energy < 30 || state.character.abilities.stress >= 80 ? 'rest' : !s.phd ?
+            (s.type === 'research' ? 'project' : 'saving') :
+            d.paper < d.policy.papers || d.thesis < d.policy.thesis ? 'paper' :
+              d.conference < d.policy.conference || d.feedback < d.policy.feedback ? 'conference' : !d.defense ? 'defense' : 'project';
+          serviceActivity(MILITARY_ACTIVITIES.find(a => a.id === id));
+        }
+      }), false, true);
+    foldDetails(scene, '복무 중 세부 활동 선택', nodes);
     return;
   }
   const defer = militaryDeferment();
-  const scene = setScene('병역·입영 일정', m.subject ? `병역 대상 · ${m.grade ? `${m.grade}급` : '판정 전'}` : '병역 비대상',
-    `연도 기준 ${characterAge()}세 · ${defer.reason}. 판정은 의학적 게임용 추첨이며 에너지/아이템과 무관합니다. 실제 개인별 법률 판단을 대신하지 않습니다.`);
+  const scene = setScene('병역·입영 일정', m.subject ? '언제 다녀올까요?' : '병역 의무 없음',
+    `${characterAge()}세 · 학업은 잠시 멈추지만 나이와 시간은 실제로 흐릅니다. 복무 경로와 행정 절차는 내부에서 처리합니다.`);
+  const firstDetail = scene.children.length;
   if (m.subject && (m.grade === null || m.grade === 7)) addButton(scene, m.grade === 7 ? '재신체검사' : '병역판정검사',
     '19세 이후 · 7급은 6개월 후 재검 · 구매/운동으로 변경 불가', choose('militaryBoard', assessMilitary), characterAge() < 19);
   if (m.subject && !s) {
@@ -225,5 +263,13 @@ function renderMilitary() {
   }
   const canReturn = !m.subject || [5,6].includes(m.grade) || s?.completed || characterAge() < 20 || defer.allowed;
   addButton(scene, '병역 일정 확인 후 돌아가기', canReturn ? '연기/완료 상태로 계속 진행' : '자동 연기 불가. 판정에 맞는 복무 경로를 정하세요.',
-    choose('militaryBoard', () => { state.phase = m.returnPhase; }), !canReturn);
+    choose('militaryBoard', () => { m.nextPromptSemester = state.semester + 2; state.phase = m.returnPhase; }), !canReturn);
+  const nodes = Array.from(scene.children).slice(firstDetail);
+  if (m.subject && !s && state.character.gender !== '여성') addButton(scene, '지금 복무 시작',
+    '상황에 맞는 복무 경로를 자동 결정합니다. 복무 완료 후 현재 진행으로 돌아옵니다.',
+    choose('militaryBoard', automaticService), characterAge() < MILITARY_CONFIG.assessmentAge, true);
+  if (canReturn || characterAge() < 20) addButton(scene, m.subject && !s?.completed ? '나중에 다녀오기' : '원래 진행으로',
+    '다음 주요 시점에 다시 안내합니다. 연기 한도 이후에는 복무를 먼저 진행합니다.',
+    choose('militaryBoard', () => { m.nextPromptSemester = state.semester + 2; state.phase = m.returnPhase; }));
+  foldDetails(scene, '이전 병역 기록·전문연구 경로', nodes);
 }
