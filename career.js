@@ -66,12 +66,12 @@ function jobScore(company, interview = null) {
   const inputs = jobInputs(interview || 0);
   const weights = Object.entries(company.weights).filter(([key]) => interview !== null || key !== 'interview');
   const total = weights.reduce((sum, [, weight]) => sum + weight, 0);
-  return round(weights.reduce((sum, [key, weight]) => sum + inputs[key] * weight, 0) / total + referralBonus());
+  return round(weights.reduce((sum, [key, weight]) => sum + inputs[key] * weight, 0) / total + referralBonus() + careerRecognition(company).scoreBonus);
 }
 function hiringProbability(score, threshold) { return clamp(1 / (1 + Math.exp(-(score - threshold) / 12)), .05, .95); }
 function hiringEligibility(company) {
   const p = company.hiring, reasons = [];
-  const degree = state.reflection.phdCompleted ? 3 : state.master?.completed ? 2 : hasBachelor() ? 1 : 0;
+   const degree = completedDegreeLevel();
   if (degree < p.degree) reasons.push(p.degree === 2 ? '석사 학위 필요' : '학사 학위 필요');
   if (cumulativeGpa() < p.gpa) reasons.push(`GPA ${p.gpa} 이상 필요`);
   if (state.practice < p.practice) reasons.push(`실무 경험 ${p.practice} 이상 필요`);
@@ -79,13 +79,15 @@ function hiringEligibility(company) {
   return reasons;
 }
 function hiringSnapshot(company) {
+  const recognition = careerRecognition(company);
+  const npcSupport = npcJobSupport(company);
   return {
-    inputs: jobInputs(), weights: { ...company.weights }, referral: referralBonus(),
+    inputs: jobInputs(), weights: { ...company.weights }, referral: referralBonus() + (npcSupport?.bonus || 0), npcSupport,
     threshold: company.hiring.difficulty + difficultyConfig().competition,
     scale: HIRING_CONFIG.scale, floor: HIRING_CONFIG.minProbability, ceiling: HIRING_CONFIG.maxProbability,
     evidenceOptions: careerEvidence().map(item => ({ ...item, score: actualInterviewScore(item.score) })),
-    salary: company.salary, role: company.role, company: company.name,
-    education: state.life.highestDegree, gpa: cumulativeGpa(),
+    salary: recognition.salary, role: recognition.role, recognition, company: company.name,
+    education: ['고등학교 졸업','학사','석사','박사'][recognition.level], gpa: cumulativeGpa(),
     projects: careerEvidence().filter(item => ['club', 'competition', 'capstone', 'industry', 'referral', 'paper'].includes(item.id)),
     internships: state.experiences.internship || 0,
   };
@@ -94,7 +96,7 @@ function snapshotJobScore(snapshot, interview = null) {
   const inputs = { ...snapshot.inputs, interview: interview || 0 };
   const entries = Object.entries(snapshot.weights).filter(([key]) => interview !== null || key !== 'interview');
   return round(entries.reduce((sum, [key, weight]) => sum + inputs[key] * weight, 0) /
-    entries.reduce((sum, [, weight]) => sum + weight, 0) + snapshot.referral);
+     entries.reduce((sum, [, weight]) => sum + weight, 0) + snapshot.referral + (snapshot.recognition?.scoreBonus || 0));
 }
 function snapshotHiringProbability(score, snapshot) {
   return clamp(1 / (1 + Math.exp(-(score - snapshot.threshold) / snapshot.scale)), snapshot.floor, snapshot.ceiling);
@@ -105,9 +107,11 @@ function renderJobBoard() {
   for (const company of COMPANIES) {
     const selected = state.career.selected.includes(company.id);
     const reason = hiringEligibility(company).join(' · ');
+    const recognition = careerRecognition(company);
+    const npcSupport = npcJobSupport(company);
     const card = element('div', undefined, 'opportunity'); scene.append(card);
     addButton(card, `${company.name} ${selected ? '선택 취소' : '지원 선택'}`,
-      `${company.role} · 연봉 ${company.salary}만원 · ${reason || '지원 가능 (합격 보장 아님)'}`,
+      `${npcSupport ? '선배 추천 공고 · ' : ''}${recognition.role} · 예상 제안 연봉 ${recognition.salary}만원 · ${reason || '지원 가능 (합격 보장 아님)'}`,
       choose('jobBoard', () => {
         if (selected) state.career.selected = state.career.selected.filter(id => id !== company.id);
         else if (!reason && state.career.selected.length < CAREER_CONFIG.maxApplications) state.career.selected.push(company.id);
@@ -115,6 +119,7 @@ function renderJobBoard() {
     const details = element('details'); details.append(element('summary', '조건·근무환경 상세'),
       element('p', `${company.type} · ${company.hiring.industry} · 학위 ${['제한 없음', '학사 이상', '석사 이상'][company.hiring.degree]} · 최소 GPA ${company.hiring.gpa}, 실무 ${company.hiring.practice}, 연구 ${company.hiring.research} · 연간 생활비 ${company.living}만원 · ${company.benefits} · 워라밸 ${company.balance}`));
     card.append(details);
+    list(details, recognitionReasons(recognition));
   }
   const choices = choiceContainer(scene);
   addButton(choices, '지원서 제출', `${state.career.selected.length}곳 · 접수비 없음 · 서류 결과는 지금 확정하여 저장`, choose('jobBoard', () => {
@@ -127,6 +132,7 @@ function renderJobBoard() {
         hiringSnapshot: snapshot, missing, documentPassed: !missing.length && draw < probability,
         documentOpened: false, interviewed: false, accepted: null, opened: false };
     });
+    if (state.social.outreach?.job && state.career.applications.some(app => app.hiringSnapshot.npcSupport)) state.social.outreach.job.used = true;
     state.phase = 'jobDocuments'; log('지원서를 제출했다. 서류 결과는 각 공고에서 확인한다.');
   }), !state.career.selected.length, true);
   addButton(choices, '직무 준비 프로젝트', '반년 경과 · 지원금 +50만원 · 실무 경험 +2 · 다음 서류 평가에 반영',
@@ -201,16 +207,20 @@ function renderJobDecision() {
   for (const app of accepted) {
     const company = companyById(app.id);
     const salary = app.hiringSnapshot?.salary ?? company.salary;
-    addButton(choiceContainer(scene), `${company.name} 입사`, `${company.type} · ${company.role} · 연봉 ${salary}, 생활비 ${company.living}만원 · ${company.benefits} · 워라밸 ${company.balance}`,
+    const card = element('div', undefined, 'result-card'); scene.append(card);
+    card.append(element('h3', `${company.name} · 연봉 ${salary}만원`));
+    list(card, recognitionReasons(app.hiringSnapshot?.recognition));
+    addButton(card, `${company.name} 입사`, `${company.type} · ${app.hiringSnapshot?.role || company.role} · 연봉 ${salary}, 생활비 ${company.living}만원 · ${company.benefits} · 워라밸 ${company.balance}`,
       choose('jobDecision', () => {
         if (state.career.employer) endEmployment('이직');
         state.career.employer = company.id; state.career.salary = salary;
         state.career.companyYears = 0; state.career.legacy = false;
-        const contract = {
-          ...(app.hiringSnapshot || hiringSnapshot(company)), age: characterAge(), startYear: state.life.year,
+         const contract = {
+          ...(app.hiringSnapshot || { ...hiringSnapshot(company), recognition: null, npcSupport: null }),
+          salary, role: app.hiringSnapshot?.role || company.role, age: characterAge(), startYear: state.life.year,
           story: app.evidence || '기존 채용 결과에 따라 입사 제안을 수락했다.',
         };
-        state.career.employmentHistory.push({ company: company.id, role: company.role, startYear: state.life.year, endYear: null, contract });
+        state.career.employmentHistory.push({ company: company.id, role: contract.role, startYear: state.life.year, endYear: null, contract });
         state.phase = 'employmentDecision'; log(`${company.name} ${company.role}로 입사했다. 계약 연봉 ${salary}만원. 취업 엔딩 또는 계속 근무를 선택한다.`);
       }));
   }
@@ -223,6 +233,8 @@ function renderEmploymentDecision() {
   const scene = setScene('정상 진로 달성 · 취업 성공', `${contract.company} 입사`,
     `${contract.role} · 계약 연봉 ${contract.salary}만원 · 입사 ${contract.age}세 · 최종 학력 ${contract.education} · 대학 GPA ${contract.gpa.toFixed(2)} / 4.50`);
   scene.append(element('p', `면접에서 연결한 경험: ${contract.story}`));
+  list(scene, recognitionReasons(contract.recognition));
+  if (contract.npcSupport) scene.append(element('p', `${contract.npcSupport.source}: 실제 서류·면접 평가 +${contract.npcSupport.bonus}점 반영`));
   addButton(choiceContainer(scene), '취업 엔딩으로 마무리', '급여나 경력을 미리 지급하지 않고 현재의 성취와 전체 인생을 기록합니다.',
     choose('employmentDecision', () => {
       state.ending = `${contract.company} 취업`;
@@ -240,7 +252,7 @@ function endEmployment(reason) {
 }
 function renderWorkTurn() {
   const company = companyById(state.career.employer);
-  const scene = setScene('6단계 · 직장 생활 1년', `${company.name} ${state.career.companyYears + 1}년차`,
+  const scene = setScene('6단계 · 직장 생활 1년', `${company.name} · ${currentCareerRole()} ${state.career.companyYears + 1}년차`,
     `연봉 ${state.career.salary} − 생활비 ${company.living} = 가용 급여 ${state.career.salary - company.living}만원. 학자금은 가용 급여의 ${CAMPUS_CONFIG.loan.repaymentRate * 100}% 범위에서 상환합니다.`);
   const choices = choiceContainer(scene);
   for (const action of WORK_ACTIONS) {
@@ -248,10 +260,12 @@ function renderWorkTurn() {
     addButton(choices, action.title, `1년 · 실무 +${action.practice}, 업무 성과 +${action.performance}, 스트레스 ${action.stress} · ${company.benefits}${reason ? ` · ${reason}` : ''}`,
       choose('workTurn', () => {
         if (reason) return;
-        const bonus = Math.floor(state.career.salary * (action.bonus || 0));
+         const paidSalary = state.career.salary;
+         const bonus = Math.floor(paidSalary * (action.bonus || 0));
         const available = state.career.salary - company.living + bonus;
         state.money += available; state.practice += action.practice; state.research += action.research || 0;
         state.jobTurns++; state.career.years++; state.career.companyYears++;
+        if (action.id === 'research') consumeNPCResearchSupport('research', `work:${state.jobTurns}`);
         recordGrowth({ project: 'workProject', research: 'workResearch', balance: 'workBalance', innovation: 'workInnovation' }[action.id],
           `work:${state.jobTurns}`);
         const repayment = repayLoan(Math.floor(available * CAMPUS_CONFIG.loan.repaymentRate), `salary:${state.jobTurns}`);
@@ -263,7 +277,10 @@ function renderWorkTurn() {
         if (action.venture) state.flags.ventureIdea = true;
         advanceTime(2, `job:${state.jobTurns}`);
         state.career.workHistory.push({ year: state.life.year, company: company.id, action: action.id,
-          salary: state.career.salary, living: company.living, income: available, repayment, saved });
+          salary: paidSalary, incentive: bonus, living: company.living, income: available, repayment, saved });
+        const salaryReview = annualSalaryReview(company, action, paidSalary);
+        Object.assign(state.career.workHistory.at(-1), { salaryReview });
+        state.career.salary = salaryReview.nextSalary;
         if (action.id === 'research' && company.researchUse >= WORK_RESEARCH_REVIEW.minimumResearchUse) {
           const kind = state.career.companyYears % 2 === 0 ? 'paper' : 'conference';
           const probability = researchChance(WORK_RESEARCH_REVIEW.probability), draw = Math.random();
@@ -273,7 +290,7 @@ function renderWorkTurn() {
           if (accepted) (kind === 'paper' ? state.study.papers : state.study.conferences).push(outcome);
           log(`연구직 연간 ${kind === 'paper' ? '논문 심사' : '학회 발표'}: ${accepted ? '성과 기록' : '보완 필요'}. 결과는 저장했다.`);
         }
-        log(`${company.name}에서 ${action.title}. 가용 급여 ${available}, 대출 상환 ${repayment}, 누적 저축에 ${saved}만원 반영.`);
+        log(`${company.name}에서 ${action.title}. 인센티브 ${bonus}만원 포함 가용 급여 ${available}, 대출 상환 ${repayment}, 저축 +${saved}만원. 경력·성과 인상 +${salaryReview.raise}만원 → 다음 연봉 ${state.career.salary}만원.`);
         chooseWorkEvent();
       }), reason);
   }
@@ -303,8 +320,10 @@ function renderWorkEvent() {
   };
   if (event.kind === 'promotion') addButton(choices, '승진을 수락한다', `연봉 ${CAREER_CONFIG.promotionRate * 100}% 인상 · 책임과 스트레스 +8`, choose('workEvent', () => {
     event.accepted = true;
-    state.career.salary = Math.round(state.career.salary * (1 + CAREER_CONFIG.promotionRate));
-    applyAbilities({ stress: 8 }); log('승진 제안을 수락했다. 다음 직장 턴부터 인상된 연봉이 적용된다.'); resolve('jobNext');
+    const before = state.career.salary;
+    state.career.salary = Math.round(before * (1 + CAREER_CONFIG.promotionRate));
+    event.salaryIncrease = state.career.salary - before;
+    applyAbilities({ stress: 8 }); log(`승진 수락! 연봉 +${event.salaryIncrease}만원 → ${state.career.salary}만원. 다음 근무 급여에 반영됩니다.`); resolve('jobNext');
   }));
   if (event.kind === 'transfer') addButton(choices, '이직 공고를 살펴본다', '새 합격을 수락하기 전에는 현재 직장을 유지합니다.', choose('workEvent', () => { resolve('jobNext'); startHiring(); }));
   if (event.kind === 'venture') addButton(choices, '창업 아이디어를 준비한다', '다음 화면에서 자본과 위험을 확인합니다.', choose('workEvent', () => { state.flags.ventureIdea = true; resolve('jobNext'); }));

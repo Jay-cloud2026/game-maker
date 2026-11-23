@@ -46,7 +46,7 @@ function memoirData() {
     retakes: Math.max(0, state.entrance.attempts.length - 1),
     admissionYear: state.life.admissionYear, graduationYear: state.life.graduationYear,
     degree: state.life.highestDegree,
-    profession: state.reflection.profession || (state.career.venture ? '사업 운영 중' : company?.role ||
+     profession: state.reflection.profession || (state.career.venture ? '사업 운영 중' : (company && currentCareerRole()) || company?.role ||
       (state.career.legacy ? '기존 직장 종사자 (소속 기록 없음)' : state.jobTurns ? '직장 경험을 가진 진로 준비자' : '다음 진로 준비 중')),
     savings: state.savings, money: state.money, deposit: state.campus.housing.deposit,
     debt: state.campus.debt, ventureAssets: state.career.venture?.budget || 0,

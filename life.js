@@ -558,7 +558,7 @@ function renderLifeSidebar() {
     state.life.admissionYear !== null ? LIFE_CONFIG.legacySchoolLabel : '대학 입학 전';
   const programme = programById(state.flags.acceptedProgram);
   if (state.reflection.profession) schoolLabel = state.reflection.profession;
-  else if (state.career.employer) schoolLabel = `${companyById(state.career.employer).name} / ${companyById(state.career.employer).role}`;
+  else if (state.career.employer) schoolLabel = `${companyById(state.career.employer).name} / ${currentCareerRole()}`;
   else if (state.career.venture) schoolLabel = '나의 창업팀 운영';
   else if (programme && (state.life.highestDegree === '박사 진학' || state.reflection.phdCompleted || (state.master && !state.master.completed))) {
     schoolLabel = `${programme.country} ${programme.school} / ${programme.lab}`;

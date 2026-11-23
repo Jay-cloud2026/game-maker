@@ -155,7 +155,7 @@ function boot() {
 function commit() {
   if (state.development) ensureUndergraduateGrowth();
   if (state.phase === 'reportReady' && currentTerm().quickProgress) { makeReport(); state.phase = 'report'; }
-  enforceMilitary(); ensureMemoirSnapshot(); updateFortyMilestone(); save(); render();
+  enforceMilitary(); updateNPCContacts(); ensureMemoirSnapshot(); updateFortyMilestone(); save(); render();
 }
 function choose(phase, callback) {
   const revision = renderRevision;
@@ -226,6 +226,10 @@ function makeReport() {
     return { name: course.name, credits: course.credits, point, grade: grades[Math.round(point * 2)] };
   });
   applyAcademicReport(courses, counts);
+  if (term.npcStudy) for (const course of courses.filter(c => !c.repeated)) {
+    course.point = round(clamp(course.point + term.npcStudy.bonus, 0, 4.5));
+    course.grade = ['F','F','D0','D+','C0','C+','B0','B+','A0','A+'][Math.round(course.point * 2)];
+  }
   if (state.study.exchangeActive) courses.forEach(course => { course.name = `교환 인정 ${course.name}`; });
   const credits = courses.reduce((sum, course) => sum + course.credits, 0);
   term.report = { courses, gpa: round(courses.reduce((sum, course) => sum + course.point * course.credits, 0) / credits) };
@@ -269,6 +273,7 @@ function careerEvidence() {
   if (state.academic.industryProject) evidence.push({ id: 'industry', title: '산학 프로젝트', text: '대학의 산학 프로젝트에서 실무 요구를 분석한 경험', score: 75 });
   evidence.push(...studyEvidence());
   if (state.experiences.industryReferral) evidence.push({ id: 'referral', title: '선배 소개 산학 협업', text: '동아리 활동을 기억한 선배의 소개로 현장 협업에 참여한 경험', score: 82 });
+  if (state.social.outreach?.job && !state.social.outreach.job.used) evidence.push({ id: 'npcAdvice', title: '선배의 면접 조언', text: '실제 채용 공고를 보내 준 선배와 직무 요구·기존 경험을 정리했다.', score: 80 });
   evidence.push({ id: 'motivation', title: '앞으로의 학습 계획', text: '현재 부족한 점과 다음 연구·학습 계획을 솔직하게 설명', score: 40 });
   return evidence;
 }
@@ -345,6 +350,7 @@ function performAction(action) {
   state.research += researchGain;
   onLabAction(action, researchGain);
   state.recommendations += action.recommendation || 0;
+  consumeNPCResearchSupport(action.experience || action.id, `ug:${state.semester}:${currentTerm().actions.length}`);
   log(`${action.title}: ${action.feedback} (${effectsText(actualEffects)})`);
   checkSocialOpportunities();
   afterAction();
@@ -534,12 +540,19 @@ function renderVacation() {
   renderVacationChoices(scene, 'vacation');
 }
 function renderVacationChoices(scene, phase) {
+  const referral = activeInternshipReferral();
   const choices = choiceContainer(scene);
-  addButton(choices, '유급 인턴 지원', `선발 시 생활비 +${CONFIG.internship.income}만원 · 체력 ${CONFIG.internship.energy} · 실무 경험 +${CONFIG.internship.experience}`,
+  addButton(choices, '유급 인턴 지원', `${referral ? '새 기회: 윤도현 선배 추천 전형 · 준비에 따른 심사 · ' : ''}선발 시 생활비 +${CONFIG.internship.income}만원 · 체력 ${CONFIG.internship.energy} · 실무 경험 +${CONFIG.internship.experience}`,
     choose(phase, () => {
       if (currentTerm().vacationDone) return;
       const count = (state.experiences.study || 0) + (state.experiences.lab || 0) + (state.experiences.club || 0);
-      const selected = count >= schoolPolicy().internshipThreshold;
+      const probability = referral ? clamp(.4 + count * .08 + .15, .15, .92) : null;
+      const draw = referral ? Math.random() : null;
+      const selected = referral ? draw < probability : count >= schoolPolicy().internshipThreshold;
+      if (referral) {
+        referral.used = true;
+        currentTerm().internshipReferral = { source: referral.source, probability, draw, selected };
+      }
       if (selected) {
         applyEffects({ money: CONFIG.internship.income, energy: CONFIG.internship.energy });
         experience('internship'); state.practice += CONFIG.internship.experience;
@@ -892,6 +905,7 @@ function renderCore() {
 function render() {
   renderCore();
   renderCompactChrome();
+  renderNPCContact();
 }
 function resetGame() {
   if (!confirm('현재 진행을 지우고 캐릭터 생성부터 다시 시작할까요?')) return;

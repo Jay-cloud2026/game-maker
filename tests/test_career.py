@@ -65,11 +65,12 @@ def test_hiring_work_and_venture(browser, errors):
     click(page, "한빛테크놀로지 입사")
     assert phase(page) == "employmentDecision"
     click(page, "직장 생활 계속 진행")
+    assert page.evaluate("state.career.salary") == 4650  # Related master's +400, lab record +50.
     money = page.evaluate("state.money")
     age = page.evaluate("characterAge()")
     target = button(page, "핵심 프로젝트 완수").element_handle()
     target.evaluate("(button)=>{button.click();button.click()}")
-    assert page.evaluate("state.money") == money + 1284 - 200
+    assert page.evaluate("state.money") == money + 1743 - 200
     assert page.evaluate("state.campus.debt") == 0
     assert page.evaluate("characterAge()") == age + 1
     assert page.evaluate("state.career.workHistory.length") == 1
@@ -79,10 +80,11 @@ def test_hiring_work_and_venture(browser, errors):
     click(page, "직장 생활 계속하기")
     click(page, "핵심 프로젝트 완수")
     assert page.evaluate("state.career.pendingEvent.kind") == "promotion"
+    promotion_salary = int(page.evaluate("state.career.salary") * 1.08 + .5)
     click(page, "승진을 수락한다")
-    assert page.evaluate("state.career.salary") == 4536
+    assert page.evaluate("state.career.salary") == promotion_salary
     page.reload()
-    assert page.evaluate("state.career.salary") == 4536
+    assert page.evaluate("state.career.salary") == promotion_salary
     click(page, "직장 생활 계속하기")
     click(page, "새 사업 아이디어 검증")
     assert page.evaluate("state.career.pendingEvent.kind") == "transfer"

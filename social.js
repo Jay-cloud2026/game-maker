@@ -20,7 +20,7 @@ function upgradeSocialState(value) {
 }
 function validSocialFields(value) {
   const social = value.social;
-  return social && social.npcs && social.interactionUsed && social.unlocked &&
+   return social && validNPCOutreach(social) && social.npcs && social.interactionUsed && social.unlocked &&
     Array.isArray(social.actionsApplied) && Array.isArray(social.romanceHistory) &&
     social.burnoutAcknowledged && social.strainTerms && social.termEvents && social.discussionUsed &&
     Object.entries(social.npcs).every(([id, npc]) => npcTemplate(id) && Array.isArray(npc.history) &&
@@ -148,7 +148,7 @@ function renderRelationships() {
     const npc = state.social.npcs[template.id];
     const card = element('div', undefined, 'opportunity');
     card.append(element('h3', `${template.name} · ${template.type}`));
-    card.append(element('p', `${template.type} · ${relationshipLabel(npc)} · ${template.goal}`));
+    card.append(element('p', `${state.social.outreach?.careers[template.id]?.stage || template.type} · ${relationshipLabel(npc)} · ${template.goal}`));
     const detail = element('details'); detail.append(element('summary', '성격·관계 상세'));
     list(detail, [template.personality, `목표: ${template.goal} · 관심: ${template.interest}`,
       `친밀도 ${npc.intimacy} · 신뢰 ${npc.trust}`]);

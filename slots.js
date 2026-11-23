@@ -22,6 +22,8 @@ function writeSlotStore(next, confirmedReplace = false) {
       // Keep the first pre-redesign record permanently, not just the rolling previous save.
       const uxBackupKey = `${SLOT_CONFIG.key}:before-ux-v1`;
       if (!localStorage.getItem(uxBackupKey)) localStorage.setItem(uxBackupKey, raw);
+      const rewardsBackupKey = `${SLOT_CONFIG.key}:before-rewards-v1`;
+      if (!localStorage.getItem(rewardsBackupKey)) localStorage.setItem(rewardsBackupKey, raw);
       let current;
       try { current = JSON.parse(raw); }
       catch { localStorage.setItem(`${SLOT_CONFIG.key}:unreadable`, raw); current = { revision: slotStore.revision }; }

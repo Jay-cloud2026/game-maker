@@ -58,6 +58,7 @@ function graduateSnapshot(degree) {
     language: Math.max(state.development?.skills.language || state.character.abilities.language, bestLanguageScore()),
     papers: state.study.papers.length, conferences: state.study.conferences.length,
     difficulty: difficultyConfig().competition,
+    npcRecommendations: (state.social.outreach?.letters || []).map(letter => ({ ...letter })),
   };
 }
 function graduateEligibility(program, snapshot = graduateSnapshot(program.degree)) {
@@ -117,6 +118,8 @@ function renderGraduateDocuments() {
   const choices = choiceContainer(scene);
   for (const app of state.applications) {
     const program = programById(app.id), document = app.document;
+    if (app.snapshot?.npcRecommendations?.length) scene.append(element('p',
+      `${program.school}: 교수님의 공동 과제 추천서가 지원 당시 추천서 조건과 서류 평가에 반영되었습니다.`));
     if (!document) {
       scene.append(element('p', `${program.country} ${program.school}: 이전 원서의 면접·결과 기록을 유지합니다.`));
       continue;

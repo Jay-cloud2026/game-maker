@@ -19,7 +19,7 @@ Math.random = () => {
 
 
 def new_page(browser, errors):
-    page = browser.new_page(viewport={"width": 1180, "height": 900})
+    page = browser.new_page(viewport={"width": 1180, "height": 900}, reduced_motion="reduce")
     page.add_init_script(RANDOM_SCRIPT)
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.goto(URL)

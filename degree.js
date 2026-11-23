@@ -122,6 +122,7 @@ function completeDegreeAction(action) {
   if (action.id === 'conference') state.study.conferences.push({ kind: 'degree-conference', program: d.program, year: state.life.year });
   if (action.id === 'rest') applyAbilities({ stress: -20, happiness: 5 });
   else applyAbilities({ stress: success ? 3 : 7 });
+  if (success) consumeNPCResearchSupport(action.id, `degree:${d.program}:${d.semester}:${t.actions.length + 1}`);
   const record = { id: action.id, title: action.title, success, draw, probability, research };
   t.actions.push(record); d.actions.push(record);
   recordGrowth(action.growth || action.id, `degree:${d.program}:${d.semester}:${t.actions.length}`);
@@ -143,6 +144,12 @@ function renderDegree() {
   const d = state.postgraduate.active, p = programById(d.program);
   if (state.phase === 'graduateDone') {
     const scene = setScene(`${degreeName(d.degree)} 학위 취득`, '긴 연구의 시간을 마쳤다', `${p.school} · ${d.semester}학기 · 논문 ${d.paper} · 연구 ${d.research}`);
+    const reward = element('div', undefined, 'result-card achievement');
+    reward.append(element('h3', `${degreeName(d.degree)} 학위가 다음 기회로 이어집니다`),
+      element('p', d.degree === 'masters' ? '관련 연구개발 직무에서 초봉·직무 평가 우대를 받을 수 있습니다. 늘봄융합연구원의 석사 지원 자격이 열렸습니다.' :
+        '관련 전문 연구직에서 학위 우대와 연구 실적에 따른 전문 직책을 받을 수 있습니다. 교수 진로는 기존 연구·교육·추천서 요건을 충족하면 열립니다.'),
+      element('p', '전공·직무가 맞아야 우대합니다. 지원 화면에서 예상 연봉과 실제 적용 근거를 확인하세요.'));
+    scene.append(reward);
     addButton(scene, d.degree === 'masters' ? '취업·박사 지원 살펴보기' : '취업·다음 진로 살펴보기', '', choose('graduateDone', () => { state.phase = 'hub'; }));
     addButton(scene, '학위 취득 엔딩', '현재 성취와 전체 타임라인 보관', choose('graduateDone', () => {
       state.ending = `${p.country} ${p.school} ${degreeName(d.degree)} 학위 취득`; state.reflection.snapshot = null; state.phase = 'ending'; log(state.ending);

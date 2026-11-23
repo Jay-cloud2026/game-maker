@@ -22,9 +22,9 @@ function assessmentFacts(value) {
   const projects = work.filter(r => ['project','innovation'].includes(r.action)).length;
   let salaryRaises = 0;
   for (let i = 1; i < work.length; i++) {
-    if (work[i].company === work[i - 1].company && work[i].salary > work[i - 1].salary) salaryRaises++;
+    if (!work[i].salaryReview && !work[i - 1].salaryReview && work[i].company === work[i - 1].company && work[i].salary > work[i - 1].salary) salaryRaises++;
   }
-  if (company && work.at(-1)?.company === company.id && c.salary > work.at(-1).salary) salaryRaises++;
+  if (company && !work.at(-1)?.salaryReview && work.at(-1)?.company === company.id && c.salary > work.at(-1).salary) salaryRaises++;
   const promotions = Math.max(salaryRaises, c.events.filter(e => e.kind === 'promotion' && e.accepted).length);
   const ventures = [...c.ventures, ...(c.venture ? [c.venture] : [])].filter(Boolean);
   const bestVenture = ventures.reduce((best, v) => !best || v.traction > best.traction ? v : best, null);
@@ -159,7 +159,7 @@ function evaluateLife(value, requestedPath = 'auto') {
   const snapshot = {
     name: value.character.name, age: value.life.year - value.character.birthYear, year: value.life.year,
     education: value.life.highestDegree,
-    job: company?.role || (service ? `${MILITARY_CONFIG.service[service.type].title} 복무 중` : value.career.venture ? '창업팀 운영' : pg && !pg.completed ? `${degreeName(pg.degree)} 연구 중` :
+    job: (company && value.career.employmentHistory.at(-1)?.contract?.role) || company?.role || (service ? `${MILITARY_CONFIG.service[service.type].title} 복무 중` : value.career.venture ? '창업팀 운영' : pg && !pg.completed ? `${degreeName(pg.degree)} 연구 중` :
       value.reflection.profession ? `${value.reflection.profession} (기존 후일담 기록)` : '진로 준비·개인 생활'),
     organization: company?.name || (institution?.title || (service ? '배정 복무기관 (세부 소속 미기록)' :
       value.career.venture ? '나의 창업팀' : pg && !pg.completed ? programById(pg.program).school : '현재 소속 미기록')),

@@ -58,7 +58,7 @@ function onLabAction(action, actualResearch = action.research || 0) {
 }
 function recommendationQuality() {
   const qualities = Object.values(state.study.letters).map(letter => letter.quality);
-  return qualities.length ? Math.max(...qualities) : 0;
+  return Math.max(npcRecommendationQuality(), ...qualities, 0);
 }
 function setStudyResult(text, next = 'study') {
   state.study.result = { text, next };
